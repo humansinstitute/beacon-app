@@ -4,7 +4,7 @@ import queueRoutes from "./app/api/routes/queue.routes.js"; // Import new queue 
 import { connectDB, disconnectDB } from "./libs/db.js"; // Import new DB functions
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.API_SERVER_PORT || 3256;
 
 app.use(express.json());
 
