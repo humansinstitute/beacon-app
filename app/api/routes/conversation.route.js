@@ -42,4 +42,31 @@ router.patch(
   conversationController.updateConvActiveFlow
 );
 
+// BeaconMessage specific routes
+// Create a new beacon message (potentially independent of a conversation initially)
+router.post("/message", conversationController.createBeaconMessage);
+
+// Get a specific beacon message by ID
+router.get("/message/:messageId", conversationController.getBeaconMessageById);
+
+// Update a specific beacon message by ID
+router.patch("/message/:messageId", conversationController.updateBeaconMessage);
+
+// Conversation specific routes (beyond the initial create)
+// Get a specific conversation by ID
+router.get("/:conversationId", conversationController.getConversationById);
+
+// Update a specific conversation by ID
+router.patch("/:conversationId", conversationController.updateConversation);
+
+// Flow specific routes (beyond the initial create and get next action)
+// Get a specific flow by ID
+router.get("/flow/:flowId", conversationController.getFlowById);
+
+// Update a specific flow by ID
+router.patch("/flow/:flowId", conversationController.updateFlow);
+
+// Update a specific action within a flow
+router.patch("/flow/:flowId/action", conversationController.updateFlowAction);
+
 export default router;

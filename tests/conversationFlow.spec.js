@@ -263,4 +263,141 @@ describe("API Endpoints", () => {
     expect(res.body.length).toBeGreaterThanOrEqual(3);
     expect(res.body.length).toBeLessThanOrEqual(5);
   });
+
+  // New tests for beaconMessage CRUD
+  describe("BeaconMessage CRUD", () => {
+    let createdBeaconMessageId;
+    const initialMessageData = {
+      content: "Initial beacon message",
+      role: "user",
+      messageID: "bm01",
+      ts: Date.now() / 1000,
+    };
+    const initialOriginData = {
+      channel: "test-beacon",
+      gatewayUserID: "beaconUser",
+      gatewayMessageID: "beaconMsg01",
+      userNpub: "npub_test_user_beacon", // Added missing field
+      gatewayNpub: "npub_test_gateway_beacon", // Added missing field
+    };
+
+    test("POST /api/conversations/message - should create a new beacon message", async () => {
+      const res = await request(server)
+        .post("/api/conversations/message")
+        .send({
+          messageData: initialMessageData,
+          originData: initialOriginData,
+          // conversationRef and flowRef can be optional for a new message not yet tied to a conversation/flow
+        });
+      expect(res.statusCode).toEqual(201);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body.message.content).toEqual("Initial beacon message");
+      createdBeaconMessageId = res.body._id;
+    });
+
+    test("GET /api/conversations/message/:messageId - should retrieve a specific beacon message", async () => {
+      const res = await request(server).get(
+        `/api/conversations/message/${createdBeaconMessageId}`
+      );
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body._id).toEqual(createdBeaconMessageId);
+      expect(res.body.message.content).toEqual("Initial beacon message");
+    });
+
+    test("PATCH /api/conversations/message/:messageId - should update a beacon message", async () => {
+      const updatedMessageData = {
+        content: "Updated beacon message content",
+        role: "user", // Role might not change, or could
+        ts: Date.now() / 1000, // Timestamp will likely update
+      };
+      const res = await request(server)
+        .patch(`/api/conversations/message/${createdBeaconMessageId}`)
+        .send({ messageData: updatedMessageData });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body._id).toEqual(createdBeaconMessageId);
+      expect(res.body.message.content).toEqual(
+        "Updated beacon message content"
+      );
+    });
+  });
+
+  // New tests for conversation CRUD (excluding create, which is already tested)
+  describe("Conversation CRUD (Update/Get)", () => {
+    // createdConversationId is available from previous tests
+    test("GET /api/conversations/:conversationId - should retrieve a specific conversation", async () => {
+      const res = await request(server).get(
+        `/api/conversations/${createdConversationId}`
+      );
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body._id).toEqual(createdConversationId);
+    });
+
+    test("PATCH /api/conversations/:conversationId - should update a conversation", async () => {
+      const updatedSummary = [
+        { role: "system", content: "Conversation updated" },
+      ];
+      const res = await request(server)
+        .patch(`/api/conversations/${createdConversationId}`)
+        .send({ summaryHistory: updatedSummary });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body.summaryHistory[0].content).toEqual(
+        "Conversation updated"
+      );
+    });
+  });
+
+  // New tests for flow CRUD (excluding create, which is already tested)
+  describe("Flow CRUD (Update/Get/Update Action)", () => {
+    // createdFlowId is available from previous tests
+    test("GET /api/conversations/flow/:flowId - should retrieve a specific flow", async () => {
+      const res = await request(server).get(
+        `/api/conversations/flow/${createdFlowId}`
+      );
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body._id).toEqual(createdFlowId);
+    });
+
+    test("PATCH /api/conversations/flow/:flowId - should update a flow", async () => {
+      const updatedWorkflow = [
+        { order: 1, action: "updated_action", state: "closed" },
+      ];
+      const res = await request(server)
+        .patch(`/api/conversations/flow/${createdFlowId}`)
+        .send({ workflow: updatedWorkflow, state: "completed" });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      expect(res.body.workflow[0].action).toEqual("updated_action");
+      expect(res.body.state).toEqual("completed");
+    });
+
+    test("PATCH /api/conversations/flow/:flowId/action - should update an action in a flow", async () => {
+      // First, ensure the flow has an action to update. Let's use the createdFlowId.
+      // We might need to fetch it to know its current workflow or assume one.
+      // For this test, let's assume the flow created earlier has an action at order: 1
+      // and we want to update its state or output.
+      const actionUpdate = {
+        order: 1, // The order of the action to update
+        output: "User provided input for action 1",
+        state: "closed",
+      };
+      const res = await request(server)
+        .patch(`/api/conversations/flow/${createdFlowId}/action`)
+        .send(actionUpdate);
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty("_id");
+      // Verify that the specific action was updated
+      const updatedFlow = await Flow.findById(createdFlowId);
+      const targetAction = updatedFlow.workflow.find(
+        (a) => a.order === actionUpdate.order
+      );
+      expect(targetAction).toBeDefined();
+      expect(targetAction.output).toEqual(actionUpdate.output);
+      expect(targetAction.state).toEqual(actionUpdate.state);
+    });
+  });
 });

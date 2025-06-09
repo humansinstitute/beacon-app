@@ -94,3 +94,141 @@ export async function updateConversationActiveFlow(conversationId, flowId) {
   await conversation.save();
   return conversation;
 }
+
+/* BeaconMessage CRUD services */
+
+/** Create a new BeaconMessage */
+export async function createBeaconMessage(
+  messageData,
+  originData,
+  conversationRef = null,
+  flowRef = null
+) {
+  return BeaconMessage.create({
+    message: messageData,
+    origin: originData,
+    conversationRef,
+    flowRef,
+  });
+}
+
+/** Get a BeaconMessage by its ID */
+export async function getBeaconMessageById(messageId) {
+  return BeaconMessage.findById(messageId).exec();
+}
+
+/** Update a BeaconMessage by its ID */
+export async function updateBeaconMessage(messageId, updateData) {
+  // updateData could be { messageData: { ... }, originData: { ... }, conversationRef: ..., flowRef: ... }
+  // We need to construct the update object carefully based on what's provided in updateData
+  const updatePayload = {};
+  if (updateData.messageData) {
+    // For nested objects like 'message', MongoDB needs dot notation for partial updates
+    // or you replace the whole sub-document.
+    // If you want to merge, you'd fetch, merge, then save.
+    // For simplicity here, we'll assume full replacement of messageData if provided.
+    updatePayload.message = updateData.messageData;
+  }
+  if (updateData.originData) {
+    updatePayload.origin = updateData.originData;
+  }
+  if (updateData.conversationRef) {
+    updatePayload.conversationRef = updateData.conversationRef;
+  }
+  if (updateData.flowRef) {
+    updatePayload.flowRef = updateData.flowRef;
+  }
+
+  return BeaconMessage.findByIdAndUpdate(messageId, updatePayload, {
+    new: true, // Return the updated document
+  }).exec();
+}
+
+/* Flow CRUD services (Get by ID, Update, Update Action) */
+
+/** Get a Flow by its ID */
+export async function getFlowById(flowId) {
+  return Flow.findById(flowId).exec();
+}
+
+/** Update a Flow by its ID */
+export async function updateFlow(flowId, updateData) {
+  // updateData could be { type, workflow, state, conversationRef }
+  const updatePayload = {};
+  if (updateData.type) {
+    updatePayload.type = updateData.type;
+  }
+  if (updateData.workflow) {
+    updatePayload.workflow = updateData.workflow;
+  }
+  if (updateData.state) {
+    updatePayload.state = updateData.state;
+  }
+  if (updateData.conversationRef) {
+    updatePayload.conversationRef = updateData.conversationRef;
+  }
+  // Add any other fields of Flow model that are updatable
+
+  return Flow.findByIdAndUpdate(flowId, updatePayload, {
+    new: true, // Return the updated document
+  }).exec();
+}
+
+/** Update a specific action within a Flow's workflow */
+export async function updateFlowAction(flowId, actionData) {
+  // actionData should contain { order, output, state, etc. }
+  const flow = await Flow.findById(flowId);
+  if (!flow) {
+    throw new Error("Flow not found");
+  }
+
+  const actionIndex = flow.workflow.findIndex(
+    (step) => step.order === actionData.order
+  );
+
+  if (actionIndex === -1) {
+    throw new Error("Action not found in workflow");
+  }
+
+  // Update the specific properties of the action
+  Object.keys(actionData).forEach((key) => {
+    if (key !== "order") {
+      // 'order' is used for identification, not update here
+      flow.workflow[actionIndex][key] = actionData[key];
+    }
+  });
+
+  // Mark the workflow path as modified if Mongoose doesn't detect nested change
+  flow.markModified("workflow");
+
+  await flow.save();
+  return flow;
+}
+
+/* Conversation CRUD services (Get by ID and Update) */
+
+/** Get a Conversation by its ID */
+export async function getConversationById(conversationId) {
+  return Conversation.findById(conversationId).exec();
+}
+
+/** Update a Conversation by its ID */
+export async function updateConversation(conversationId, updateData) {
+  // updateData could be { summaryHistory: [...], history: [...], activeFlow: ... }
+  // Construct the update object carefully
+  const updatePayload = {};
+  if (updateData.summaryHistory) {
+    updatePayload.summaryHistory = updateData.summaryHistory;
+  }
+  if (updateData.history) {
+    updatePayload.history = updateData.history;
+  }
+  if (updateData.activeFlow) {
+    updatePayload.activeFlow = updateData.activeFlow;
+  }
+  // Add any other fields of Conversation model that are updatable
+
+  return Conversation.findByIdAndUpdate(conversationId, updatePayload, {
+    new: true, // Return the updated document
+  }).exec();
+}
