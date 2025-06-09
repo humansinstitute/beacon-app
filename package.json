@@ -1,12 +1,16 @@
 {
   "name": "thebeacon",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "jest"
+    "start": "node index.js",
+    "test": "jest",
+    "worker:in": "node app/workers/generic.worker.js bm_in",
+    "worker:out": "node app/workers/generic.worker.js bm_out"
   },
   "author": "",
   "license": "ISC",
