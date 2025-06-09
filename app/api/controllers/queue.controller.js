@@ -3,7 +3,12 @@ import { addBeaconMessageToQueue } from "../services/queue.service.js";
 
 export const addMessage = async (req, res) => {
   try {
+    const { queueName } = req.params;
     const beaconMessage = req.body;
+
+    if (!queueName) {
+      return res.status(400).json({ error: "Queue name is required." });
+    }
 
     // Basic validation: Check if beaconMessage exists and is not empty
     if (!beaconMessage || Object.keys(beaconMessage).length === 0) {
@@ -15,10 +20,10 @@ export const addMessage = async (req, res) => {
     // Optionally, add more specific validation for the beaconMessage structure if needed
     // For example: if (!beaconMessage.id || !beaconMessage.data) { ... }
 
-    const result = await addBeaconMessageToQueue(beaconMessage);
+    const result = await addBeaconMessageToQueue(queueName, beaconMessage);
 
     return res.status(201).json({
-      message: "Beacon message successfully added to the queue.",
+      message: `Beacon message successfully added to the '${queueName}' queue.`,
       jobId: result.jobId, // Include the jobId in the response
     });
   } catch (error) {

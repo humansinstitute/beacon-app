@@ -5,7 +5,7 @@ import { addMessage } from "../controllers/queue.controller.js";
 const router = Router();
 
 // Defines the POST endpoint for adding a message to the queue
-// It will be accessible at /api/queue/add
-router.post("/add", addMessage);
+// It will be accessible at /api/queue/add/:queueName
+router.post("/add/:queueName", addMessage);
 
 export default router;
