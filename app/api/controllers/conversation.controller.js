@@ -10,6 +10,132 @@ export async function getConversationHistory(req, res, next) {
   }
 }
 
+// Controller functions for Flow CRUD (Get by ID, Update, Update Action)
+export async function getFlowById(req, res, next) {
+  try {
+    const { flowId } = req.params;
+    const flow = await conversationService.getFlowById(flowId);
+    if (!flow) {
+      return res.status(404).json({ message: "Flow not found" });
+    }
+    res.json(flow);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateFlow(req, res, next) {
+  try {
+    const { flowId } = req.params;
+    const updateData = req.body; // e.g., { type: "...", workflow: [...], state: "..." }
+    const flow = await conversationService.updateFlow(flowId, updateData);
+    if (!flow) {
+      return res.status(404).json({ message: "Flow not found" });
+    }
+    res.json(flow);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateFlowAction(req, res, next) {
+  try {
+    const { flowId } = req.params;
+    // req.body should contain the action details to update, e.g., { order: 1, output: "...", state: "..." }
+    const actionData = req.body;
+    const flow = await conversationService.updateFlowAction(flowId, actionData);
+    if (!flow) {
+      return res
+        .status(404)
+        .json({ message: "Flow not found or action not updated" });
+    }
+    res.json(flow);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Controller functions for Conversation CRUD (Get by ID and Update)
+export async function getConversationById(req, res, next) {
+  try {
+    const { conversationId } = req.params;
+    const conversation = await conversationService.getConversationById(
+      conversationId
+    );
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    res.json(conversation);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateConversation(req, res, next) {
+  try {
+    const { conversationId } = req.params;
+    const updateData = req.body; // e.g., { summaryHistory: [...], history: [...] }
+    const conversation = await conversationService.updateConversation(
+      conversationId,
+      updateData
+    );
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    res.json(conversation);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Controller functions for BeaconMessage CRUD
+export async function createBeaconMessage(req, res, next) {
+  try {
+    const { messageData, originData, conversationRef, flowRef } = req.body;
+    const beaconMessage = await conversationService.createBeaconMessage(
+      messageData,
+      originData,
+      conversationRef,
+      flowRef
+    );
+    res.status(201).json(beaconMessage);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getBeaconMessageById(req, res, next) {
+  try {
+    const { messageId } = req.params;
+    const beaconMessage = await conversationService.getBeaconMessageById(
+      messageId
+    );
+    if (!beaconMessage) {
+      return res.status(404).json({ message: "BeaconMessage not found" });
+    }
+    res.json(beaconMessage);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateBeaconMessage(req, res, next) {
+  try {
+    const { messageId } = req.params;
+    const updateData = req.body; // e.g., { messageData: { ... }, originData: { ... } }
+    const beaconMessage = await conversationService.updateBeaconMessage(
+      messageId,
+      updateData
+    );
+    if (!beaconMessage) {
+      return res.status(404).json({ message: "BeaconMessage not found" });
+    }
+    res.json(beaconMessage);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getLatestConversationFlow(req, res, next) {
   try {
     const { conversationId } = req.params;
