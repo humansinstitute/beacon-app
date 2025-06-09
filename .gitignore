@@ -7,6 +7,11 @@ node_modules/
 # Ignore output Folder 
 output/
 
+# Gateways
+# Ignore WhatsApp Web related folders
+.wwebjs_auth/
+.wwebjs_cache/
+
 #SQLlite
 nostr.db
 nostr.db*
