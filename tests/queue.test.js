@@ -20,10 +20,10 @@ const objectId = (suffix = "") =>
 /** ------------------------------------------------------------------ *
  *  Test Configuration                                                  *
  *  ------------------------------------------------------------------ */
-const QUEUE_NAME = "beaconMessageQueue"; // This should match the queue name used by the service
+const TEST_QUEUE_NAME = "test";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
-describe("POST /api/queue/add - BeaconMessage to BullMQ", () => {
+describe("POST /api/queue/add/:queueName - BeaconMessage to BullMQ", () => {
   let queue;
   let redisConnection;
 
@@ -31,15 +31,13 @@ describe("POST /api/queue/add - BeaconMessage to BullMQ", () => {
     redisConnection = new IORedis(REDIS_URL, {
       maxRetriesPerRequest: null, // Important for BullMQ
     });
-    queue = new Queue(QUEUE_NAME, { connection: redisConnection });
+    queue = new Queue(TEST_QUEUE_NAME, { connection: redisConnection });
     await queue.obliterate({ force: true }); // Clear queue before tests
   });
 
   afterAll(async () => {
     await queue.close();
     await redisConnection.quit();
-    // If your app starts a server, you might need app.close() or similar here
-    // For now, assuming index.js exports app and doesn't auto-start http server for tests
   });
 
   /** -------- BeaconMessage fixture -------- */
@@ -64,15 +62,14 @@ describe("POST /api/queue/add - BeaconMessage to BullMQ", () => {
     flowRef: objectId("flow-api"),
   };
 
-  test("should add a BeaconMessage to the queue via API and return 201", async () => {
-    // This test will initially fail with 404 until the endpoint is created
+  test("should add a BeaconMessage to the specified queue via API and return 201", async () => {
     const response = await request(app)
-      .post("/api/queue/add")
+      .post(`/api/queue/add/${TEST_QUEUE_NAME}`)
       .send(beaconMessagePayload)
-      .expect("Content-Type", /json/) // Or appropriate content type
-      .expect(201); // Or 202 Accepted, depending on API design
+      .expect("Content-Type", /json/)
+      .expect(201);
 
-    expect(response.body).toHaveProperty("jobId"); // Assuming API returns the job ID
+    expect(response.body).toHaveProperty("jobId");
 
     // Verify the job is in the queue
     const waitingCount = await queue.getWaitingCount();
