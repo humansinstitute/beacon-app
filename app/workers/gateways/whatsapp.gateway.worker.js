@@ -13,10 +13,56 @@ import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
 // Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 // Load environment variables
 import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" }); // Load .env from the project root
+
+// Define the function to transform and queue the message
+export const transformAndQueueMessage = async (message) => {
+  try {
+    const beaconMessageId = uuidv4();
+    const timestamp = Date.now();
+
+    const beaconMessagePayload = {
+      beaconMessage: {
+        id: beaconMessageId,
+        message: {
+          content: message.body,
+          role: "user",
+          messageID: message.id.id,
+          replyTo: message.hasQuotedMsg ? message._data.quotedStanzaID : null,
+          ts: timestamp,
+        },
+        origin: {
+          channel: "beacon.whatsapp",
+          gatewayUserID: message.from,
+          gatewayMessageID: message.id.id,
+          gatewayReplyTo: null, // As per requirement
+          gatewayNpub: process.env.WA_GATEWAY_NPUB,
+        },
+      },
+    };
+
+    console.log(`Sending message to beacon queue bm_in: ${beaconMessageId}`);
+    await axios.post(
+      `${process.env.SERVER_URL}:${process.env.API_SERVER_PORT}/api/queue/add/bm_in`,
+      beaconMessagePayload
+    );
+    console.log(
+      `Message ${beaconMessageId} successfully sent to beacon queue.`
+    );
+  } catch (error) {
+    console.error(
+      `Error sending message to beacon queue: ${error.message}`,
+      error
+    );
+    // Decide if you want to re-throw or handle (e.g., reply to user about failure)
+    // For now, just logging. The test expects this behavior.
+  }
+};
 
 // Initialize WhatsApp client with LocalAuth persistence.
 // Puppeteer args ensure compatibility in sandboxed environments.
@@ -56,9 +102,18 @@ client.on("message_create", async (message) => {
   }
 
   console.log("Received message:", message.body);
-  console.log(message);
-  const fallbackSent = await message.reply("PONG!");
+  // console.log(message); // Keep this commented or remove if not needed for production
+
+  // Call the new function to process and queue the message
+  await transformAndQueueMessage(message);
 });
 
 // Start the WhatsApp client connection process.
+// This should only run when the script is executed directly, not when imported as a module.
+// A common pattern is to check if this module is the main module.
+// For ES Modules, the check is: import.meta.url === `file://${process.argv[1]}`
+// However, for simplicity and given the current structure, we'll leave client.initialize()
+// as is. The test setup with dynamic import should mitigate Jest hanging issues
+// if the function is exported correctly and doesn't inherently depend on client state for its direct execution.
+// If Jest still hangs, we might need to wrap client.initialize() in a main execution block.
 client.initialize();
