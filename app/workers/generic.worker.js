@@ -2,6 +2,9 @@
 import { Worker } from "bullmq";
 import redisConnection from "../libs/redis.js";
 
+console.log("currentFilePath =", currentFilePath);
+console.log("process.argv[1] =", process.argv[1]);
+
 const processor = async (job) => {
   console.log(
     `Processing job ${job.id} from queue ${job.queueName} with data:`,

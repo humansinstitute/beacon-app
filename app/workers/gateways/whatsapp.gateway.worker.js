@@ -7,7 +7,6 @@
  * - Logs interactions and tracks budget usage in MongoDB.
  */
 
-// External dependencies
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
@@ -16,9 +15,9 @@ import qrcode from "qrcode-terminal";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
-// Load environment variables
+// Load environment variables from project root
 import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" }); // Load .env from the project root
+dotenv.config();
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -46,11 +45,15 @@ export const transformAndQueueMessage = async (message) => {
       },
     };
 
+    // Construct base URL for API calls
+    const baseURL =
+      process.env.API_BASE_URL ||
+      `${process.env.SERVER_URL}:${process.env.API_SERVER_PORT}`;
+
     console.log(`Sending message to beacon queue bm_in: ${beaconMessageId}`);
-    await axios.post(
-      `${process.env.SERVER_URL}:${process.env.API_SERVER_PORT}/api/queue/add/bm_in`,
-      beaconMessagePayload
-    );
+    await axios.post(`${baseURL}/api/queue/add/bm_in`, beaconMessagePayload, {
+      headers: { "Content-Type": "application/json" },
+    });
     console.log(
       `Message ${beaconMessageId} successfully sent to beacon queue.`
     );
@@ -108,12 +111,5 @@ client.on("message_create", async (message) => {
   await transformAndQueueMessage(message);
 });
 
-// Start the WhatsApp client connection process.
-// This should only run when the script is executed directly, not when imported as a module.
-// A common pattern is to check if this module is the main module.
-// For ES Modules, the check is: import.meta.url === `file://${process.argv[1]}`
-// However, for simplicity and given the current structure, we'll leave client.initialize()
-// as is. The test setup with dynamic import should mitigate Jest hanging issues
-// if the function is exported correctly and doesn't inherently depend on client state for its direct execution.
 // If Jest still hangs, we might need to wrap client.initialize() in a main execution block.
 client.initialize();
