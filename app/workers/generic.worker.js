@@ -2,17 +2,14 @@
 import { Worker } from "bullmq";
 import redisConnection from "../libs/redis.js";
 
-console.log("currentFilePath =", currentFilePath);
-console.log("process.argv[1] =", process.argv[1]);
-
 const processor = async (job) => {
+  /* NEW: pretty-print the full payload so we know JSON is unmarshalled */
   console.log(
-    `Processing job ${job.id} from queue ${job.queueName} with data:`,
-    job.data
+    `📨  [${job.queueName}] Received job ${job.id}\n` +
+      JSON.stringify(job.data, null, 2)
   );
-  // Actual job processing logic will be added here or delegated based on job type/data.
-  // For now, we just log and complete.
-  await job.updateProgress(100); // Example of updating progress
+
+  await job.updateProgress(100);
   return { status: "completed", jobId: job.id, data: job.data };
 };
 
@@ -55,25 +52,53 @@ export const setupWorker = (queueName) => {
   return worker; // Return the worker instance
 };
 
-import { fileURLToPath } from "url";
-import path from "path"; // Import path module
+// import { fileURLToPath } from "url";
+// import path from "path"; // Import path module
 
-// Main execution block for ES Modules:
-// This allows the script to be run directly to start a worker for a specific queue.
-const currentFilePath = fileURLToPath(import.meta.url);
-const scriptPath = process.argv[1];
+/* ---------- Universal bootstrap (Node ⬌ PM2) ---------- */
 
-// More robust check for whether the script is being run directly
-if (path.resolve(currentFilePath) === path.resolve(scriptPath)) {
-  const queueName = process.argv[2]; // Get queue name from command-line argument
+/**
+ * Returns the first CLI argument that is
+ *  - NOT the PM2 wrapper (ends with ".js"), and
+ *  - NOT a Node/PM2 flag ("--something")
+ */
+const findQueueName = () => {
+  return process.argv
+    .slice(2) // skip node + PM2 wrapper
+    .find((arg) => !arg.endsWith(".js") && !arg.startsWith("-"));
+};
 
-  if (!queueName) {
-    console.error(
-      "Error: Queue name must be provided as a command-line argument."
-    );
-    console.log("Usage: node app/workers/generic.worker.js <queueName>");
+const queueName = findQueueName(); // "bm_in" or "bm_out" in prod
+
+// ✅ run when a queue name is supplied (Node or PM2)
+// 🚫 skip when imported in Jest (no queue argument)
+if (queueName) {
+  console.log(`Bootstrapping worker for CLI arg queue: ${queueName}`);
+
+  setupWorker(queueName).catch((err) => {
+    console.error("Fatal worker error:", err);
     process.exit(1);
-  }
-
-  setupWorker(queueName);
+  });
 }
+
+// /* ---------- CLI bootstrap (PM2-safe) ---------- */
+
+// // true  ➜  script launched directly (node or PM2)
+// // false ➜  script was merely imported in a unit-test
+// const isDirectRun =
+//   // 1️⃣ basic case: node app/workers/generic.worker.js
+//   import.meta.url === new URL(`file://${process.argv[1]}`).href ||
+//   // 2️⃣ PM2 fork case: argv list still contains the worker’s name
+//   process.argv.slice(1).some((a) => a.endsWith("generic.worker.js"));
+
+// if (isDirectRun) {
+//   const queueName = process.argv[2]; // e.g. "bm_in"
+//   if (!queueName) {
+//     console.error("Usage: node generic.worker.js <queueName>");
+//     process.exit(1);
+//   }
+//   setupWorker(queueName).catch((err) => {
+//     console.error("Fatal worker error:", err);
+//     process.exit(1);
+//   });
+// }
