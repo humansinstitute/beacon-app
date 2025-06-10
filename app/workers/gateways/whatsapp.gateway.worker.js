@@ -7,7 +7,10 @@
  * - Logs interactions and tracks budget usage in MongoDB.
  */
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
+=======
+>>>>>>> Stashed changes
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
@@ -16,8 +19,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 // Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
+<<<<<<< Updated upstream
 =======
 >>>>>>> 8d88084 (investigate whatsapp client not running)
+=======
+>>>>>>> Stashed changes
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
@@ -27,6 +33,7 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 // Determine the directory of this module
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -167,6 +174,8 @@ export function isClientReady() {
 }
 >>>>>>> 8d88084 (investigate whatsapp client not running)
 
+=======
+>>>>>>> Stashed changes
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
   try {
@@ -213,28 +222,45 @@ export const transformAndQueueMessage = async (message) => {
     // Decide if you want to re-throw or handle (e.g., reply to user about failure)
     // For now, just logging. The test expects this behavior.
   }
-}; // end transformAndQueueMessage
+};
+
+// Initialize WhatsApp client with LocalAuth persistence.
+// Puppeteer args ensure compatibility in sandboxed environments.
+const client = new Client({
+  authStrategy: new LocalAuth({ dataPath: authFolder }),
+  puppeteer: {
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  },
+});
+
+// Display QR code in terminal when WhatsApp Web requests authentication.
+client.on("qr", (qr) => {
+  qrcode.generate(qr, { small: true });
+});
+
+// Once the client is ready, log confirmation and check current budget.
+client.once("ready", () => {
+  console.log("Client is ready!");
+  // checkAndLogBudget();
+});
+
+// Handle authentication failures by logging the error.
+client.on("auth_failure", (msg) => {
+  console.error("Authentication failure:", msg);
+});
 
 /**
- * Send a message via WhatsApp client
- * @param {string} chatID - WhatsApp chat identifier (e.g., "61487097701@c.us")
- * @param {string} content - Text content to send
- * @param {object} options - Additional sendMessage options (e.g., { quotedMessageId })
- * @returns {Promise<{ success: boolean, messageID: string }>}
+ * Listener for incoming WhatsApp messages.
+ * - Ignores messages sent by this client.
+ * - Checks budget and processes messages if sufficient funds remain.
  */
-export async function sendMessage(chatID, content, options = {}) {
-  try {
-    const message = await client.sendMessage(chatID, content, options);
-    const messageID = message.id._serialized;
-    return { success: true, messageID };
-  } catch (error) {
-    console.error("Error sending WhatsApp message:", error);
-    if (isTest) {
-      // In test mode, return a failure result instead of throwing
-      return { success: false, error: error.message };
-    }
-    throw error;
+client.on("message_create", async (message) => {
+  // Ignore messages sent by the bot itself.
+  if (message.fromMe) {
+    console.log("Ignoring message from self:", message.body);
+    return;
   }
+<<<<<<< Updated upstream
 }
 <<<<<<< HEAD
 
@@ -274,6 +300,8 @@ client.on("message_create", async (message) => {
     console.log("Ignoring message from self:", message.body);
     return;
   }
+=======
+>>>>>>> Stashed changes
 
   console.log("Received message:", message.body);
   // console.log(message); // Keep this commented or remove if not needed for production
@@ -281,5 +309,11 @@ client.on("message_create", async (message) => {
   // Call the new function to process and queue the message
   await transformAndQueueMessage(message);
 });
+<<<<<<< Updated upstream
 =======
 >>>>>>> 8d88084 (investigate whatsapp client not running)
+=======
+
+// If Jest still hangs, we might need to wrap client.initialize() in a main execution block.
+client.initialize();
+>>>>>>> Stashed changes

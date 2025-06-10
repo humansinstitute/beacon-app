@@ -1,25 +1,35 @@
 // app/workers/generic.worker.js
 import { Worker } from "bullmq";
 import redisConnection from "../libs/redis.js";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-const processor = async (job) => {
-  /* NEW: pretty-print the full payload so we know JSON is unmarshalled */
-  console.log(
-    `📨  [${job.queueName}] Received job ${job.id}\n` +
-      JSON.stringify(job.data, null, 2)
-  );
+// Dynamic processor loader
+const processorRoot = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "processors"
+);
 
-  await job.updateProgress(100);
-  return { status: "completed", jobId: job.id, data: job.data };
+const loadProcessor = async (queueName) => {
+  try {
+    const mod = await import(join(processorRoot, `${queueName}.processor.js`));
+    return mod.default;
+  } catch (err) {
+    throw new Error(`No processor found for queue «${queueName}»`);
+  }
 };
 
-export const setupWorker = (queueName) => {
+export const setupWorker = async (queueName) => {
   if (!queueName || typeof queueName !== "string" || queueName.trim() === "") {
     console.error("Error: A valid queue name must be provided to setupWorker.");
     return null; // Or throw an error
   }
 
   console.log(`Initializing worker for queue: ${queueName}`);
+
+  // Dynamically load the processor for this queue
+  const processor = await loadProcessor(queueName);
+
   const worker = new Worker(queueName, processor, {
     connection: redisConnection,
     concurrency: 5, // Example: process 5 jobs concurrently
@@ -75,10 +85,14 @@ const queueName = findQueueName(); // "bm_in" or "bm_out" in prod
 if (queueName) {
   console.log(`Bootstrapping worker for CLI arg queue: ${queueName}`);
 
-  setupWorker(queueName).catch((err) => {
-    console.error("Fatal worker error:", err);
-    process.exit(1);
-  });
+  (async () => {
+    try {
+      await setupWorker(queueName);
+    } catch (err) {
+      console.error("Fatal worker error:", err);
+      process.exit(1);
+    }
+  })();
 }
 
 // /* ---------- CLI bootstrap (PM2-safe) ---------- */
