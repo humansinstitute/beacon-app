@@ -10,6 +10,9 @@
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 // Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
 import axios from "axios";
@@ -18,6 +21,18 @@ import { v4 as uuidv4 } from "uuid";
 // Load environment variables from project root
 import dotenv from "dotenv";
 dotenv.config();
+
+// Determine the directory of this module
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Default path for storing WhatsApp Web authentication data
+const defaultAuthPath = path.resolve(__dirname, "../../../.wwebjs_auth");
+
+// Allow override via environment variable
+const authFolder = process.env.WA_AUTH_FOLDER || defaultAuthPath;
+
+// Ensure the directory exists
+fs.mkdirSync(authFolder, { recursive: true });
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -70,7 +85,7 @@ export const transformAndQueueMessage = async (message) => {
 // Initialize WhatsApp client with LocalAuth persistence.
 // Puppeteer args ensure compatibility in sandboxed environments.
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: authFolder }),
   puppeteer: {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   },
