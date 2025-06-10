@@ -1,12 +1,3 @@
-/**
- * gateways/waWeb/app.js
- *
- * Gateway connecting WhatsApp Web to the OSAPI backend.
- * - Handles authentication via QR code and LocalAuth strategy.
- * - Processes incoming messages by calling `callOSAPI`.
- * - Logs interactions and tracks budget usage in MongoDB.
- */
-
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
@@ -17,6 +8,7 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
 
 // Load environment variables from project root
 import dotenv from "dotenv";
@@ -94,7 +86,12 @@ client.on("qr", (qrCode) => {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
-  // const qrFilename = path.join(__dirname, `whatsapp_qr_${Date.now()}.png`);
+
+  // Check if the QR code file already exists and delete it
+  if (fs.existsSync(qrFilename)) {
+    fs.unlinkSync(qrFilename);
+    console.log(`Deleted existing QR code image: ${qrFilename}`);
+  }
 
   // Generate and save QR code image
   qr.toFile(qrFilename, qrCode, (err) => {

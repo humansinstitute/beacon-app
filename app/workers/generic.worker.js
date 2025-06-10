@@ -52,16 +52,6 @@ export const setupWorker = (queueName) => {
   return worker; // Return the worker instance
 };
 
-// import { fileURLToPath } from "url";
-// import path from "path"; // Import path module
-
-/* ---------- Universal bootstrap (Node ⬌ PM2) ---------- */
-
-/**
- * Returns the first CLI argument that is
- *  - NOT the PM2 wrapper (ends with ".js"), and
- *  - NOT a Node/PM2 flag ("--something")
- */
 const findQueueName = () => {
   return process.argv
     .slice(2) // skip node + PM2 wrapper
