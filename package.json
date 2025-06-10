@@ -23,6 +23,7 @@
     "express": "^5.1.0",
     "mongoose": "^8.14.1",
     "nostr-tools": "^2.12.0",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "uuid": "^11.1.0",
     "whatsapp-web.js": "^1.23.0",
