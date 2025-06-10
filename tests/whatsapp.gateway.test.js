@@ -129,7 +129,8 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
     expect(axios.post).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledWith(
       `${MOCK_SERVER_URL}:${MOCK_API_SERVER_PORT}/api/queue/add/bm_in`,
-      expectedBeaconMessagePayload
+      expectedBeaconMessagePayload,
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
@@ -166,7 +167,8 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
     expect(axios.post).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledWith(
       `${MOCK_SERVER_URL}:${MOCK_API_SERVER_PORT}/api/queue/add/bm_in`,
-      expectedBeaconMessagePayload
+      expectedBeaconMessagePayload,
+      { headers: { "Content-Type": "application/json" } }
     );
   });
 
