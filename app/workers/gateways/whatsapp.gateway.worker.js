@@ -10,14 +10,23 @@
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
-// Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
+// Import qrcode for image generation
+import qr from "qrcode";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
+import { fileURLToPath } from "url";
+import path from "path";
 
 // Load environment variables from project root
 import dotenv from "dotenv";
 dotenv.config();
+
+console.log("[DIAG] Current working directory:", process.cwd());
+console.log(
+  "[DIAG] Session storage path:",
+  path.join(process.cwd(), ".wwebjs_auth")
+);
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -77,8 +86,24 @@ const client = new Client({
 });
 
 // Display QR code in terminal when WhatsApp Web requests authentication.
-client.on("qr", (qr) => {
-  qrcode.generate(qr, { small: true });
+client.on("qr", (qrCode) => {
+  // Display QR in terminal
+  qrcode.generate(qrCode, { small: true });
+
+  // Generate a unique filename in the same directory
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
+  // const qrFilename = path.join(__dirname, `whatsapp_qr_${Date.now()}.png`);
+
+  // Generate and save QR code image
+  qr.toFile(qrFilename, qrCode, (err) => {
+    if (err) {
+      console.error("Failed to save QR code image:", err);
+    } else {
+      console.log(`QR code image saved to: ${qrFilename}`);
+    }
+  });
 });
 
 // Once the client is ready, log confirmation and check current budget.
@@ -89,7 +114,7 @@ client.once("ready", () => {
 
 // Handle authentication failures by logging the error.
 client.on("auth_failure", (msg) => {
-  console.error("Authentication failure:", msg);
+  console.error("[DIAG] Authentication failure:", msg);
 });
 
 /**
