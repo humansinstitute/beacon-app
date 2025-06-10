@@ -20,6 +20,8 @@ import qrcode from "qrcode-terminal";
 >>>>>>> 8d88084 (investigate whatsapp client not running)
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import fs from "fs";
 
 // Load environment variables from project root
 import dotenv from "dotenv";
@@ -42,14 +44,53 @@ import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
 import qrcode from "qrcode-terminal";
 
+const defaultAuthPath = path.resolve(process.cwd(), ".wwebjs_auth");
+const authDataPath = process.env.WA_AUTH_FOLDER
+  ? path.resolve(process.env.WA_AUTH_FOLDER)
+  : defaultAuthPath;
+
+if (!fs.existsSync(authDataPath)) {
+  fs.mkdirSync(authDataPath, { recursive: true });
+}
+
 let client = null;
 let clientReady = false;
 const isTest = process.env.NODE_ENV === "test";
 
+function reconnectClient() {
+  if (!client) return;
+  client
+    .destroy()
+    .catch((err) => console.error("Error destroying WhatsApp client:", err))
+    .finally(() => {
+      console.log("Reinitializing WhatsApp client...");
+      client.initialize().catch((err) => {
+        console.error("Failed to reinitialize WhatsApp client:", err);
+        clientReady = false;
+      });
+    });
+}
+
+function setupShutdown() {
+  const shutdown = async () => {
+    if (client) {
+      try {
+        await client.destroy();
+      } catch (err) {
+        console.error("Error during WhatsApp client shutdown:", err);
+      }
+    }
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
 if (!isTest) {
   // Initialize WhatsApp client with LocalAuth persistence.
+  console.log(`Using WhatsApp auth data path: ${authDataPath}`);
   client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({ dataPath: authDataPath }),
     puppeteer: {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     },
@@ -68,10 +109,18 @@ if (!isTest) {
     // checkAndLogBudget();
   });
 
-  // Handle authentication failures by logging the error.
+  // Handle authentication failures by logging the error and attempting reconnect.
   client.on("auth_failure", (msg) => {
     console.error("Authentication failure:", msg);
     clientReady = false;
+    reconnectClient();
+  });
+
+  // Reinitialize when client gets disconnected
+  client.on("disconnected", (reason) => {
+    console.warn("WhatsApp client disconnected:", reason);
+    clientReady = false;
+    reconnectClient();
   });
 
   /**
@@ -97,6 +146,8 @@ if (!isTest) {
     console.error("Failed to initialize WhatsApp client:", err);
     clientReady = false;
   });
+
+  setupShutdown();
 } else {
   // In test mode, mock the client
   client = {
