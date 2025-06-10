@@ -10,6 +10,7 @@
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
+// Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
 // Import qrcode for image generation
 import qr from "qrcode";
@@ -21,6 +22,7 @@ import path from "path";
 // Load environment variables from project root
 import dotenv from "dotenv";
 dotenv.config();
+
 
 console.log("[DIAG] Current working directory:", process.cwd());
 console.log(
@@ -79,7 +81,7 @@ export const transformAndQueueMessage = async (message) => {
 // Initialize WhatsApp client with LocalAuth persistence.
 // Puppeteer args ensure compatibility in sandboxed environments.
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: authFolder }),
   puppeteer: {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   },
