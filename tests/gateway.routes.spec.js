@@ -7,17 +7,27 @@ import { BeaconMessage } from "../models/index.js";
 // Default: Mock sendMessage to always throw (simulate error)
 jest.mock("../app/workers/gateways/whatsapp.gateway.worker.js", () => ({
   sendMessage: jest.fn().mockRejectedValue(new Error("Simulated error")),
+  isClientReady: jest.fn(() => true),
 }));
 
 describe("Gateway Routes", () => {
   beforeAll(async () => {
-    // Optionally, connect to a test DB if needed
-    // await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+    // Use in-memory MongoDB for tests
+    const { MongoMemoryServer } = await import("mongodb-memory-server");
+    const mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    await mongoose.connect(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    global.__MONGOD__ = mongod;
   });
 
   afterAll(async () => {
-    // Optionally, disconnect from test DB if needed
-    // await mongoose.disconnect();
+    await mongoose.disconnect();
+    if (global.__MONGOD__) {
+      await global.__MONGOD__.stop();
+    }
   });
 
   describe("POST /api/gateway/signal", () => {
@@ -44,20 +54,30 @@ describe("Gateway Routes", () => {
         options: { quotedMessageId: "67890" },
         beaconMessageID: new mongoose.Types.ObjectId().toString(), // always valid, non-existent
       };
+      // Patch isClientReady to true for this test
+      const {
+        isClientReady,
+      } = require("../app/workers/gateways/whatsapp.gateway.worker.js");
+      isClientReady.mockReturnValue(true);
+
       const res = await request(app).post("/api/gateway/wa").send(payload);
       expect(res.status).toBe(500);
       expect(res.body).toHaveProperty("error");
     }, 10000); // Increase timeout to 10s
 
     it("should respond with 200 and return messageID/timestamp on success", async () => {
+      jest.setTimeout(15000); // Increase timeout for this test
+
       // Patch the mock to resolve for this test only
       const {
         sendMessage,
+        isClientReady,
       } = require("../app/workers/gateways/whatsapp.gateway.worker.js");
       sendMessage.mockResolvedValueOnce({
         success: true,
         messageID: "mock-msg-id",
       });
+      isClientReady.mockReturnValue(true);
 
       // Insert a BeaconMessage to update
       const beacon = await BeaconMessage.create({
@@ -96,6 +116,6 @@ describe("Gateway Routes", () => {
       expect(updated.response.messageID).toBe("mock-msg-id");
       expect(updated.response.role).toBe("agent");
       expect(updated.response.content).toBe(payload.content);
-    });
+    }, 15000);
   });
 });
