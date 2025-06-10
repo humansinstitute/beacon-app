@@ -14,11 +14,33 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
-console.log("[DIAG] Current working directory:", process.cwd());
-console.log(
-  "[DIAG] Session storage path:",
-  path.join(process.cwd(), ".wwebjs_auth")
-);
+const LOCK_FILE = path.join(process.cwd(), ".wwebjs.lock");
+
+function acquireLock() {
+  if (fs.existsSync(LOCK_FILE)) {
+    const pid = fs.readFileSync(LOCK_FILE, "utf8");
+    try {
+      process.kill(pid, 0);
+      throw new Error("Another instance is already running");
+    } catch (e) {
+      // Process doesn't exist, continue
+    }
+  }
+  fs.writeFileSync(LOCK_FILE, process.pid.toString());
+  console.log(`Acquired lock with PID: ${process.pid}`);
+}
+
+function releaseLock() {
+  if (fs.existsSync(LOCK_FILE)) {
+    const pid = fs.readFileSync(LOCK_FILE, "utf8");
+    if (pid === process.pid.toString()) {
+      fs.unlinkSync(LOCK_FILE);
+      console.log("Released lock");
+    }
+  }
+}
+
+acquireLock();
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -63,37 +85,36 @@ export const transformAndQueueMessage = async (message) => {
       `Error sending message to beacon queue: ${error.message}`,
       error
     );
-    // Decide if you want to re-throw or handle (e.g., reply to user about failure)
-    // For now, just logging. The test expects this behavior.
   }
 };
 
 // Initialize WhatsApp client with LocalAuth persistence.
-// Puppeteer args ensure compatibility in sandboxed environments.
+const instanceId = process.env.pm_id || "standalone";
+console.log(`Using instance ID: ${instanceId}`);
+
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({
+    dataPath: path.join(process.cwd(), `.wwebjs_auth_${instanceId}`),
+  }),
   puppeteer: {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true,
   },
 });
 
 // Display QR code in terminal when WhatsApp Web requests authentication.
 client.on("qr", (qrCode) => {
-  // Display QR in terminal
   qrcode.generate(qrCode, { small: true });
 
-  // Generate a unique filename in the same directory
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
 
-  // Check if the QR code file already exists and delete it
   if (fs.existsSync(qrFilename)) {
     fs.unlinkSync(qrFilename);
     console.log(`Deleted existing QR code image: ${qrFilename}`);
   }
 
-  // Generate and save QR code image
   qr.toFile(qrFilename, qrCode, (err) => {
     if (err) {
       console.error("Failed to save QR code image:", err);
@@ -103,35 +124,42 @@ client.on("qr", (qrCode) => {
   });
 });
 
-// Once the client is ready, log confirmation and check current budget.
 client.once("ready", () => {
   console.log("Client is ready!");
-  // checkAndLogBudget();
 });
 
-// Handle authentication failures by logging the error.
 client.on("auth_failure", (msg) => {
   console.error("[DIAG] Authentication failure:", msg);
 });
 
-/**
- * Listener for incoming WhatsApp messages.
- * - Ignores messages sent by this client.
- * - Checks budget and processes messages if sufficient funds remain.
- */
 client.on("message_create", async (message) => {
-  // Ignore messages sent by the bot itself.
   if (message.fromMe) {
     console.log("Ignoring message from self:", message.body);
     return;
   }
 
   console.log("Received message:", message.body);
-  // console.log(message); // Keep this commented or remove if not needed for production
-
-  // Call the new function to process and queue the message
   await transformAndQueueMessage(message);
 });
 
-// If Jest still hangs, we might need to wrap client.initialize() in a main execution block.
+client.on("disconnected", (reason) => {
+  console.error("Client disconnected:", reason);
+  cleanup();
+});
+
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
+
+async function cleanup() {
+  try {
+    await client.destroy();
+    console.log("Client destroyed");
+  } catch (e) {
+    console.error("Cleanup error:", e);
+  } finally {
+    releaseLock();
+    process.exit(0);
+  }
+}
+
 client.initialize();
