@@ -19,6 +19,7 @@ const { Client, LocalAuth } = pkg;
 import qrcode from "qrcode-terminal";
 
 let client = null;
+let clientReady = false;
 const isTest = process.env.NODE_ENV === "test";
 
 if (!isTest) {
@@ -32,18 +33,21 @@ if (!isTest) {
 
   // Display QR code in terminal when WhatsApp Web requests authentication.
   client.on("qr", (qr) => {
+    console.log("Scan QR code to authenticate WhatsApp client:");
     qrcode.generate(qr, { small: true });
   });
 
   // Once the client is ready, log confirmation and check current budget.
   client.once("ready", () => {
-    console.log("Client is ready!");
+    console.log("WhatsApp client is ready!");
+    clientReady = true;
     // checkAndLogBudget();
   });
 
   // Handle authentication failures by logging the error.
   client.on("auth_failure", (msg) => {
     console.error("Authentication failure:", msg);
+    clientReady = false;
   });
 
   /**
@@ -62,13 +66,29 @@ if (!isTest) {
     // Call the new function to process and queue the message
     await transformAndQueueMessage(message);
   });
+
+  // Initialize the WhatsApp client
+  console.log("Initializing WhatsApp client...");
+  client.initialize().catch((err) => {
+    console.error("Failed to initialize WhatsApp client:", err);
+    clientReady = false;
+  });
 } else {
   // In test mode, mock the client
   client = {
     sendMessage: async () => ({ id: { _serialized: "test-message-id" } }),
     on: () => {},
-    once: () => {},
+    once: (event, cb) => {
+      if (event === "ready") setTimeout(cb, 10);
+    },
+    initialize: () => Promise.resolve(),
   };
+  clientReady = true;
+}
+
+// Export readiness check for use in routes or diagnostics
+export function isClientReady() {
+  return clientReady;
 }
 
 // Define the function to transform and queue the message
