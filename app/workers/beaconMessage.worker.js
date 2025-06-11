@@ -19,6 +19,7 @@ console.log(
 
 import conversationAgent from "../src/agents/conversationAgent.js";
 import { callEverest } from "../api/services/everest.service.js";
+import { addMessageToQueue } from "../utils/queueUtils.js";
 
 const worker = new Worker(
   QUEUE_NAME,
@@ -43,6 +44,26 @@ const worker = new Worker(
         // Call Everest service
         const response = await callEverest(agentData);
         console.log("[Worker] Everest API response:", response);
+
+        // Format the message for WhatsApp
+        const whatsappMessage = {
+          chatID: job.data.beaconMessage.origin.gatewayUserID,
+          message: response.message,
+          options: { quotedMessageId: job.data.beaconMessage.message.replyTo },
+          beaconMessageId: job.data.beaconMessage.id,
+        };
+
+        // Add the message to the bm_out queue
+        console.log(
+          "[Worker] Adding response to bm_out queue:",
+          whatsappMessage
+        );
+        await addMessageToQueue(
+          "bm_out",
+          whatsappMessage,
+          "sendWhatsAppMessage"
+        );
+        console.log("[Worker] Response added to bm_out queue successfully");
       } catch (error) {
         console.error("[Worker] Error processing job:", error);
         throw error;

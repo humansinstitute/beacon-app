@@ -7,6 +7,8 @@ import qr from "qrcode";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
+import { Worker } from "bullmq";
+import IORedis from "ioredis";
 import path from "path";
 import fs from "fs";
 
@@ -15,6 +17,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const LOCK_FILE = path.join(process.cwd(), ".wwebjs.lock");
+const OUTBOUND_QUEUE_NAME = "bm_out";
+const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
 function acquireLock() {
   if (fs.existsSync(LOCK_FILE)) {
@@ -88,6 +92,41 @@ export const transformAndQueueMessage = async (message) => {
   }
 };
 
+// Define the function to process outbound messages
+const processOutboundMessage = async (message) => {
+  try {
+    console.log("[WhatsApp Gateway] Processing outbound message:", message);
+
+    // Send the message using the WhatsApp Web.js client
+    const sentMessage = await client.sendMessage(
+      message.chatID,
+      message.message
+    );
+
+    console.log(
+      `[WhatsApp Gateway] Message sent to ${message.chatID}:`,
+      sentMessage.id.id
+    );
+
+    // Return success with the sent message ID
+    return {
+      success: true,
+      messageId: message.beaconMessageId,
+      whatsappMessageId: sentMessage.id.id,
+    };
+  } catch (error) {
+    console.error(
+      "[WhatsApp Gateway] Error processing outbound message:",
+      error
+    );
+    throw error;
+  }
+};
+
+const outboundRedisConnection = new IORedis(REDIS_URL, {
+  maxRetriesPerRequest: null,
+});
+
 // Initialize WhatsApp client with LocalAuth persistence.
 const instanceId = process.env.pm_id || "standalone";
 console.log(`Using instance ID: ${instanceId}`);
@@ -124,10 +163,6 @@ client.on("qr", (qrCode) => {
   });
 });
 
-client.once("ready", () => {
-  console.log("Client is ready!");
-});
-
 client.on("auth_failure", (msg) => {
   console.error("[DIAG] Authentication failure:", msg);
 });
@@ -147,6 +182,45 @@ client.on("disconnected", (reason) => {
   cleanup();
 });
 
+let outboundWorker;
+
+client.once("ready", () => {
+  console.log("Client is ready!");
+
+  // Add outbound worker after client is ready
+  outboundWorker = new Worker(
+    OUTBOUND_QUEUE_NAME,
+    async (job) => {
+      console.log(
+        `[WhatsApp Gateway] Processing outbound job ${job.id}:`,
+        job.data
+      );
+
+      try {
+        return await processOutboundMessage(job.data);
+      } catch (error) {
+        console.error(
+          `[WhatsApp Gateway] Error processing outbound job ${job.id}:`,
+          error
+        );
+        throw error;
+      }
+    },
+    {
+      connection: outboundRedisConnection,
+      concurrency: 5,
+    }
+  );
+
+  outboundWorker.on("completed", (job, result) => {
+    console.log(`[WhatsApp Gateway] Outbound job ${job.id} completed:`, result);
+  });
+
+  outboundWorker.on("failed", (job, err) => {
+    console.error(`[WhatsApp Gateway] Outbound job ${job.id} failed:`, err);
+  });
+});
+
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
@@ -154,6 +228,14 @@ async function cleanup() {
   try {
     await client.destroy();
     console.log("Client destroyed");
+
+    if (outboundWorker) {
+      await outboundWorker.close();
+      console.log("Outbound worker closed");
+    }
+
+    await outboundRedisConnection.quit();
+    console.log("Outbound Redis connection closed");
   } catch (e) {
     console.error("Cleanup error:", e);
   } finally {
