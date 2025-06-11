@@ -18,7 +18,7 @@ module.exports = {
     },
     {
       name: "beacon-worker",
-      script: "app/workers/beacon.worker.js",
+      script: "app/workers/beaconMessage.worker.js",
       // args: "bm_in",
       instances: 1,
       autorestart: true,
