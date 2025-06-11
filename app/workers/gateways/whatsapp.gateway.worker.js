@@ -1,34 +1,50 @@
-/**
- * gateways/waWeb/app.js
- *
- * Gateway connecting WhatsApp Web to the OSAPI backend.
- * - Handles authentication via QR code and LocalAuth strategy.
- * - Processes incoming messages by calling `callOSAPI`.
- * - Logs interactions and tracks budget usage in MongoDB.
- */
-
 // Library for interacting with WhatsApp Web and managing sessions.
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
-// Displays QR code in the terminal for user authentication.
 import qrcode from "qrcode-terminal";
 // Import qrcode for image generation
 import qr from "qrcode";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
+import { Worker } from "bullmq";
+import IORedis from "ioredis";
 import path from "path";
+import fs from "fs";
 
 // Load environment variables from project root
 import dotenv from "dotenv";
 dotenv.config();
 
+const LOCK_FILE = path.join(process.cwd(), ".wwebjs.lock");
+const OUTBOUND_QUEUE_NAME = "bm_out";
+const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
-console.log("[DIAG] Current working directory:", process.cwd());
-console.log(
-  "[DIAG] Session storage path:",
-  path.join(process.cwd(), ".wwebjs_auth")
-);
+function acquireLock() {
+  if (fs.existsSync(LOCK_FILE)) {
+    const pid = fs.readFileSync(LOCK_FILE, "utf8");
+    try {
+      process.kill(pid, 0);
+      throw new Error("Another instance is already running");
+    } catch (e) {
+      // Process doesn't exist, continue
+    }
+  }
+  fs.writeFileSync(LOCK_FILE, process.pid.toString());
+  console.log(`Acquired lock with PID: ${process.pid}`);
+}
+
+function releaseLock() {
+  if (fs.existsSync(LOCK_FILE)) {
+    const pid = fs.readFileSync(LOCK_FILE, "utf8");
+    if (pid === process.pid.toString()) {
+      fs.unlinkSync(LOCK_FILE);
+      console.log("Released lock");
+    }
+  }
+}
+
+acquireLock();
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -73,32 +89,71 @@ export const transformAndQueueMessage = async (message) => {
       `Error sending message to beacon queue: ${error.message}`,
       error
     );
-    // Decide if you want to re-throw or handle (e.g., reply to user about failure)
-    // For now, just logging. The test expects this behavior.
   }
 };
 
+// Define the function to process outbound messages
+const processOutboundMessage = async (message) => {
+  try {
+    console.log("[WhatsApp Gateway] Processing outbound message:", message);
+
+    // Send the message using the WhatsApp Web.js client
+    const sentMessage = await client.sendMessage(
+      message.chatID,
+      message.message
+    );
+
+    console.log(
+      `[WhatsApp Gateway] Message sent to ${message.chatID}:`,
+      sentMessage.id.id
+    );
+
+    // Return success with the sent message ID
+    return {
+      success: true,
+      messageId: message.beaconMessageId,
+      whatsappMessageId: sentMessage.id.id,
+    };
+  } catch (error) {
+    console.error(
+      "[WhatsApp Gateway] Error processing outbound message:",
+      error
+    );
+    throw error;
+  }
+};
+
+const outboundRedisConnection = new IORedis(REDIS_URL, {
+  maxRetriesPerRequest: null,
+});
+
 // Initialize WhatsApp client with LocalAuth persistence.
-// Puppeteer args ensure compatibility in sandboxed environments.
+const instanceId = process.env.pm_id || "standalone";
+console.log(`Using instance ID: ${instanceId}`);
+
 const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: authFolder }),
+  authStrategy: new LocalAuth({
+    dataPath: path.join(process.cwd(), `.wwebjs_auth_${instanceId}`),
+  }),
   puppeteer: {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true,
   },
 });
 
 // Display QR code in terminal when WhatsApp Web requests authentication.
 client.on("qr", (qrCode) => {
-  // Display QR in terminal
   qrcode.generate(qrCode, { small: true });
 
-  // Generate a unique filename in the same directory
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
-  // const qrFilename = path.join(__dirname, `whatsapp_qr_${Date.now()}.png`);
 
-  // Generate and save QR code image
+  if (fs.existsSync(qrFilename)) {
+    fs.unlinkSync(qrFilename);
+    console.log(`Deleted existing QR code image: ${qrFilename}`);
+  }
+
   qr.toFile(qrFilename, qrCode, (err) => {
     if (err) {
       console.error("Failed to save QR code image:", err);
@@ -108,35 +163,85 @@ client.on("qr", (qrCode) => {
   });
 });
 
-// Once the client is ready, log confirmation and check current budget.
-client.once("ready", () => {
-  console.log("Client is ready!");
-  // checkAndLogBudget();
-});
-
-// Handle authentication failures by logging the error.
 client.on("auth_failure", (msg) => {
   console.error("[DIAG] Authentication failure:", msg);
 });
 
-/**
- * Listener for incoming WhatsApp messages.
- * - Ignores messages sent by this client.
- * - Checks budget and processes messages if sufficient funds remain.
- */
 client.on("message_create", async (message) => {
-  // Ignore messages sent by the bot itself.
   if (message.fromMe) {
     console.log("Ignoring message from self:", message.body);
     return;
   }
 
   console.log("Received message:", message.body);
-  // console.log(message); // Keep this commented or remove if not needed for production
-
-  // Call the new function to process and queue the message
   await transformAndQueueMessage(message);
 });
 
-// If Jest still hangs, we might need to wrap client.initialize() in a main execution block.
+client.on("disconnected", (reason) => {
+  console.error("Client disconnected:", reason);
+  cleanup();
+});
+
+let outboundWorker;
+
+client.once("ready", () => {
+  console.log("Client is ready!");
+
+  // Add outbound worker after client is ready
+  outboundWorker = new Worker(
+    OUTBOUND_QUEUE_NAME,
+    async (job) => {
+      console.log(
+        `[WhatsApp Gateway] Processing outbound job ${job.id}:`,
+        job.data
+      );
+
+      try {
+        return await processOutboundMessage(job.data);
+      } catch (error) {
+        console.error(
+          `[WhatsApp Gateway] Error processing outbound job ${job.id}:`,
+          error
+        );
+        throw error;
+      }
+    },
+    {
+      connection: outboundRedisConnection,
+      concurrency: 5,
+    }
+  );
+
+  outboundWorker.on("completed", (job, result) => {
+    console.log(`[WhatsApp Gateway] Outbound job ${job.id} completed:`, result);
+  });
+
+  outboundWorker.on("failed", (job, err) => {
+    console.error(`[WhatsApp Gateway] Outbound job ${job.id} failed:`, err);
+  });
+});
+
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
+
+async function cleanup() {
+  try {
+    await client.destroy();
+    console.log("Client destroyed");
+
+    if (outboundWorker) {
+      await outboundWorker.close();
+      console.log("Outbound worker closed");
+    }
+
+    await outboundRedisConnection.quit();
+    console.log("Outbound Redis connection closed");
+  } catch (e) {
+    console.error("Cleanup error:", e);
+  } finally {
+    releaseLock();
+    process.exit(0);
+  }
+}
+
 client.initialize();

@@ -7,10 +7,17 @@ node_modules/
 # Ignore output Folder 
 output/
 
+
+
 # Gateways
 # Ignore WhatsApp Web related folders
 .wwebjs_auth/
 .wwebjs_cache/
+.wwebjs_auth*/            # matches .wwebjs_auth/, .wwebjs_auth_19/, etc.
+.wwebjs_cache*/           # matches .wwebjs_cache/, .wwebjs_cache_42/, etc.
+.wwebjs.lock              # ignore the browser-lock file
+.wwebjs_auth_19
+*whatsapp_qr*.png
 
 #SQLlite
 nostr.db

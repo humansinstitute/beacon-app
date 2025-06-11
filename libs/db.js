@@ -14,10 +14,7 @@ const connectDB = async () => {
       mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/thebeacon";
     }
 
-    const conn = await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(mongoUri);
 
     if (process.env.NODE_ENV !== "test") {
       console.log(`MongoDB Connected: ${conn.connection.host}`);

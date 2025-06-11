@@ -2,7 +2,11 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 
-const QUEUE_NAME = "beaconMessageQueue";
+// At the top of beaconMessage.worker.js
+import dotenv from "dotenv";
+dotenv.config();
+
+const QUEUE_NAME = "bm_in";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
 const redisConnection = new IORedis(REDIS_URL, {
@@ -13,14 +17,57 @@ console.log(
   `Beacon message worker connecting to queue: ${QUEUE_NAME} on ${REDIS_URL}`
 );
 
+import conversationAgent from "../src/agents/conversationAgent.js";
+import { callEverest } from "../api/services/everest.service.js";
+import { addMessageToQueue } from "../utils/queueUtils.js";
+
 const worker = new Worker(
   QUEUE_NAME,
   async (job) => {
     if (job.name === "addBeaconMessage") {
       console.log(`[Worker] Processing job ${job.id}:`, job.data);
-      // Simulate some processing time
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      console.log(`[Worker] Finished processing job ${job.id}`);
+
+      try {
+        // Call conversation agent with message content
+        const agentData = await conversationAgent(
+          job.data.beaconMessage.message.content,
+          "",
+          []
+        );
+
+        // Set origin data from job
+        agentData.origin = {
+          ...agentData.origin,
+          ...job.data.beaconMessage.origin,
+        };
+
+        // Call Everest service
+        const response = await callEverest(agentData);
+        console.log("[Worker] Everest API response:", response);
+
+        // Format the message for WhatsApp
+        const whatsappMessage = {
+          chatID: job.data.beaconMessage.origin.gatewayUserID,
+          message: response.message,
+          options: { quotedMessageId: job.data.beaconMessage.message.replyTo },
+          beaconMessageId: job.data.beaconMessage.id,
+        };
+
+        // Add the message to the bm_out queue
+        console.log(
+          "[Worker] Adding response to bm_out queue:",
+          whatsappMessage
+        );
+        await addMessageToQueue(
+          "bm_out",
+          whatsappMessage,
+          "sendWhatsAppMessage"
+        );
+        console.log("[Worker] Response added to bm_out queue successfully");
+      } catch (error) {
+        console.error("[Worker] Error processing job:", error);
+        throw error;
+      }
     } else {
       console.warn(`[Worker] Received job with unexpected name: ${job.name}`);
     }
