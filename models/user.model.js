@@ -14,6 +14,21 @@ const RemoteSignerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AliasSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      required: true,
+      enum: ["wa", "sig", "nostr", "web", "slk", "sms"],
+    },
+    ref: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     npub: {
@@ -25,6 +40,10 @@ const UserSchema = new mongoose.Schema(
     remoteSigner: {
       type: RemoteSignerSchema,
       default: () => ({}),
+    },
+    alias: {
+      type: [AliasSchema],
+      default: [],
     },
     beaconBalance: {
       type: Number,
