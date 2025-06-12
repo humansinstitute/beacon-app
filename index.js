@@ -1,6 +1,7 @@
 import express from "express";
 import conversationRoutes from "./app/api/routes/conversation.route.js";
 import queueRoutes from "./app/api/routes/queue.routes.js"; // Import new queue routes
+import userRoutes from "./app/api/routes/user.route.js";
 import { connectDB, disconnectDB } from "./libs/db.js"; // Import new DB functions
 
 const app = express();
@@ -11,6 +12,7 @@ app.use(express.json());
 // API routes
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/queue", queueRoutes); // Use new queue routes
+app.use("/api/user", userRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
