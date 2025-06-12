@@ -7,6 +7,7 @@ import { callEverest } from "../../api/services/everest.service.js";
  * @returns {Promise<string>} The response message from Everest API.
  */
 export async function processConversationPipeline(jobData) {
+  console.log(jobData);
   const agentData = await conversationAgent(
     jobData.beaconMessage.message.content,
     "",
