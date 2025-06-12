@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Development:**
 
-- `node index.js` - Start the Express server (port 3000 by default)
+- `node index.js` - Start the Express server (port 3256 by default)
 - Uses environment variables from `.env` if present
 
 ## Architecture
@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Database Strategy:**
 
-- Production: MongoDB at `process.env.MONGO_URI` or `mongodb://localhost:27017/avalonkeys`
+- Production: MongoDB at `process.env.MONGO_URI` or `mongodb://localhost:27017/thebeacon`
 - Testing: MongoDB Memory Server (automatic in-memory database)
 - Database connection management centralized in `libs/db.js`
 
