@@ -37,6 +37,10 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    name: {
+      type: String,
+      default: null,
+    },
     remoteSigner: {
       type: RemoteSignerSchema,
       default: () => ({}),
