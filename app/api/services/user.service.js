@@ -28,3 +28,22 @@ export async function createUser(userData) {
     throw new Error(`Error creating user: ${error.message}`);
   }
 }
+
+export async function updateUserByNpub(npub, updateData) {
+  try {
+    // Filter out undefined values to ensure only provided fields are updated
+    const updateObject = Object.keys(updateData).reduce((acc, key) => {
+      if (updateData[key] !== undefined) {
+        acc[key] = updateData[key];
+      }
+      return acc;
+    }, {});
+    return await User.findOneAndUpdate(
+      { npub },
+      { $set: updateObject },
+      { new: true, runValidators: true }
+    );
+  } catch (error) {
+    throw new Error(`Error updating user: ${error.message}`);
+  }
+}

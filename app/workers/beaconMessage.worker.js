@@ -17,8 +17,7 @@ console.log(
   `Beacon message worker connecting to queue: ${QUEUE_NAME} on ${REDIS_URL}`
 );
 
-import conversationAgent from "../src/agents/conversationAgent.js";
-import { callEverest } from "../api/services/everest.service.js";
+import { processConversationPipeline } from "../src/pipeline/conversation.js";
 import { addMessageToQueue } from "../utils/queueUtils.js";
 
 const worker = new Worker(
@@ -28,27 +27,14 @@ const worker = new Worker(
       console.log(`[Worker] Processing job ${job.id}:`, job.data);
 
       try {
-        // Call conversation agent with message content
-        const agentData = await conversationAgent(
-          job.data.beaconMessage.message.content,
-          "",
-          []
-        );
-
-        // Set origin data from job
-        agentData.origin = {
-          ...agentData.origin,
-          ...job.data.beaconMessage.origin,
-        };
-
-        // Call Everest service
-        const response = await callEverest(agentData);
-        console.log("[Worker] Everest API response:", response);
+        // Process the message through the conversation pipeline
+        const responseMessage = await processConversationPipeline(job.data);
+        console.log("[Worker] Pipeline response message:", responseMessage);
 
         // Format the message for WhatsApp
         const whatsappMessage = {
           chatID: job.data.beaconMessage.origin.gatewayUserID,
-          message: response.message,
+          message: responseMessage,
           options: { quotedMessageId: job.data.beaconMessage.message.replyTo },
           beaconMessageId: job.data.beaconMessage.id,
         };

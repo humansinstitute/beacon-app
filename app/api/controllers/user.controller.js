@@ -2,6 +2,7 @@ import {
   getUserByNpub,
   lookupUserByAlias,
   createUser as createUserService,
+  updateUserByNpub,
 } from "../services/user.service.js";
 
 export async function getUser(req, res) {
@@ -45,6 +46,20 @@ export async function createUser(req, res) {
     }
     const user = await createUserService(userData);
     return res.status(201).json(user);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+}
+
+export async function updateUser(req, res) {
+  try {
+    const { id: npub } = req.params;
+    const updateData = req.body;
+    const user = await updateUserByNpub(npub, updateData);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.json(user);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
