@@ -8,7 +8,11 @@ jest.mock("../app/api/services/everest.service.js");
 describe("Conversation Pipeline", () => {
   test("should process job data and return response message", async () => {
     const mockJobData = {
-      beaconMessage: { message: { content: "Hello" }, origin: {} },
+      beaconMessage: {
+        message: { content: "Hello" },
+        origin: {},
+        user: { _id: "user123", name: "Test User", npub: "npub123" },
+      },
     };
     conversationAgent.mockResolvedValue({ response: "Hi there", origin: {} });
     callEverest.mockResolvedValue({ message: "Hi there from Everest" });
@@ -18,7 +22,11 @@ describe("Conversation Pipeline", () => {
 
   test("should handle errors from conversation agent", async () => {
     const mockJobData = {
-      beaconMessage: { message: { content: "Hello" }, origin: {} },
+      beaconMessage: {
+        message: { content: "Hello" },
+        origin: {},
+        user: { _id: "user123", name: "Test User", npub: "npub123" },
+      },
     };
     conversationAgent.mockRejectedValue(new Error("Agent error"));
     await expect(processConversationPipeline(mockJobData)).rejects.toThrow(
@@ -28,7 +36,11 @@ describe("Conversation Pipeline", () => {
 
   test("should handle errors from Everest API", async () => {
     const mockJobData = {
-      beaconMessage: { message: { content: "Hello" }, origin: {} },
+      beaconMessage: {
+        message: { content: "Hello" },
+        origin: {},
+        user: { _id: "user123", name: "Test User", npub: "npub123" },
+      },
     };
     conversationAgent.mockResolvedValue({ response: "Hi there", origin: {} });
     callEverest.mockRejectedValue(new Error("Everest API error"));

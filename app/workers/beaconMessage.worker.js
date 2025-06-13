@@ -32,6 +32,8 @@ console.log(
 import { lookupUserByAlias } from "../utils/userUtils.js";
 import { processConversationPipeline } from "../src/pipeline/conversation.js";
 import { addMessageToQueue } from "../utils/queueUtils.js";
+import { analyzeConversation } from "../utils/messageUtils.js";
+import { Conversation, BeaconMessage } from "../../models/index.js";
 
 // Initialize database connection and worker
 async function initializeWorker() {
@@ -74,10 +76,108 @@ async function initializeWorker() {
           }
         }
 
+        // Analyze conversation context
+        let conversation = null;
+        try {
+          console.log("[Worker] Analyzing conversation context...");
+          const existingConversation = analyzeConversation(
+            job.data.beaconMessage.message,
+            job.data.beaconMessage.origin,
+            job.data.beaconMessage.user
+          );
+
+          if (existingConversation.isNew) {
+            // Create new conversation
+            console.log("[Worker] Creating new conversation...");
+            conversation = new Conversation({
+              history: [], // Will be populated after BeaconMessage creation
+              summaryHistory: [
+                {
+                  role: job.data.beaconMessage.message.role,
+                  content: job.data.beaconMessage.message.content,
+                },
+              ],
+              activeFlow: null,
+            });
+
+            await conversation.save();
+            console.log(
+              `[Worker] New conversation created with ID: ${conversation._id}`
+            );
+
+            // Attach conversation to job data for pipeline processing
+            job.data.conversation = conversation;
+          } else {
+            // Load existing conversation (future implementation)
+            console.log(
+              `[Worker] Loading existing conversation: ${existingConversation.refId}`
+            );
+            conversation = existingConversation.data;
+            job.data.conversation = conversation;
+          }
+        } catch (error) {
+          console.error(
+            "[Worker] Error in conversation analysis/creation:",
+            error
+          );
+          // Continue processing without conversation context
+          job.data.conversation = null;
+        }
+
         try {
           // Process the message through the conversation pipeline
           const responseMessage = await processConversationPipeline(job.data);
           console.log("[Worker] Pipeline response message:", responseMessage);
+
+          // Create BeaconMessage and update conversation if we have one
+          if (conversation) {
+            try {
+              console.log(
+                "[Worker] Creating BeaconMessage with conversation reference..."
+              );
+
+              // Create BeaconMessage with conversation reference
+              const beaconMessage = new BeaconMessage({
+                message: job.data.beaconMessage.message,
+                response: {
+                  content: responseMessage,
+                  role: "agent",
+                  messageID: `response_${job.data.beaconMessage.message.messageID}`,
+                  replyTo: job.data.beaconMessage.message.messageID,
+                  ts: Math.floor(Date.now() / 1000),
+                },
+                origin: job.data.beaconMessage.origin,
+                conversationRef: conversation._id,
+                flowRef: null, // Will be set when flows are implemented
+              });
+
+              await beaconMessage.save();
+              console.log(
+                `[Worker] BeaconMessage created with ID: ${beaconMessage._id}`
+              );
+
+              // Update conversation history
+              conversation.history.push(beaconMessage._id);
+              conversation.summaryHistory.push({
+                role: "agent",
+                content: responseMessage,
+              });
+
+              await conversation.save();
+              console.log(
+                "[Worker] Conversation updated with BeaconMessage and response"
+              );
+
+              // Store beaconMessage ID for response queue
+              job.data.beaconMessageId = beaconMessage._id;
+            } catch (error) {
+              console.error(
+                "[Worker] Error creating BeaconMessage or updating conversation:",
+                error
+              );
+              // Continue with response even if conversation tracking fails
+            }
+          }
 
           // Format the message for WhatsApp
           const whatsappMessage = {
@@ -86,7 +186,8 @@ async function initializeWorker() {
             options: {
               quotedMessageId: job.data.beaconMessage.message.replyTo,
             },
-            beaconMessageId: job.data.beaconMessage.id,
+            beaconMessageId:
+              job.data.beaconMessageId || job.data.beaconMessage.id,
           };
 
           // Add the message to the bm_out queue
