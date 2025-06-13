@@ -2,7 +2,6 @@
 
 ![beacon-image](https://github.com/user-attachments/assets/fbad331a-acd5-4e6e-8483-5c1f4c13e24d)
 
-## The Protocoll
 
 > On the island of Pharos the Ptolemies lit a beacon that turned Alexandria into the nerve-centre of the ancient world, guiding mariners safely into the port of liberty, knowledge and freedom.
 > The goal of the project is to relight that flame in cyberspace, building a trojan horse inside the most ubiquitous chat networks in the world to guide people towards free information, freedom networks and freedom money. 
