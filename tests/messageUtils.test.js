@@ -28,8 +28,12 @@ describe("MessageUtils", () => {
       npub: "npub456",
     };
 
-    test("should return hardcoded new conversation response", () => {
-      const result = analyzeConversation(validMessage, validOrigin, validUser);
+    test("should return new conversation response for valid input", async () => {
+      const result = await analyzeConversation(
+        validMessage,
+        validOrigin,
+        validUser
+      );
 
       expect(result).toEqual({
         isNew: true,
@@ -38,8 +42,8 @@ describe("MessageUtils", () => {
       });
     });
 
-    test("should work without user parameter", () => {
-      const result = analyzeConversation(validMessage, validOrigin);
+    test("should work without user parameter", async () => {
+      const result = await analyzeConversation(validMessage, validOrigin);
 
       expect(result).toEqual({
         isNew: true,
@@ -48,8 +52,8 @@ describe("MessageUtils", () => {
       });
     });
 
-    test("should handle invalid message parameter", () => {
-      const result = analyzeConversation(null, validOrigin, validUser);
+    test("should handle invalid message parameter", async () => {
+      const result = await analyzeConversation(null, validOrigin, validUser);
 
       expect(result).toEqual({
         isNew: true,
@@ -58,8 +62,8 @@ describe("MessageUtils", () => {
       });
     });
 
-    test("should handle invalid origin parameter", () => {
-      const result = analyzeConversation(validMessage, null, validUser);
+    test("should handle invalid origin parameter", async () => {
+      const result = await analyzeConversation(validMessage, null, validUser);
 
       expect(result).toEqual({
         isNew: true,
@@ -68,14 +72,14 @@ describe("MessageUtils", () => {
       });
     });
 
-    test("should handle missing message content gracefully", () => {
+    test("should handle missing message content gracefully", async () => {
       const messageWithoutContent = {
         role: "user",
         messageID: "msg123",
         ts: 1672531200,
       };
 
-      const result = analyzeConversation(
+      const result = await analyzeConversation(
         messageWithoutContent,
         validOrigin,
         validUser
@@ -143,7 +147,7 @@ describe("MessageUtils", () => {
     test("should accept agent role", () => {
       const validMessage = {
         content: "Test response",
-        role: "agent",
+        role: "assistant",
         messageID: "msg123",
         ts: 1672531200,
       };

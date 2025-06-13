@@ -15,7 +15,14 @@ export async function processConversationPipeline(jobData) {
 
   if (jobData.conversation && jobData.conversation.summaryHistory) {
     // Use conversation history for context, excluding the current message
-    conversationHistory = jobData.conversation.summaryHistory.slice(0, -1);
+    const rawHistory = jobData.conversation.summaryHistory.slice(0, -1);
+
+    // Clean the conversation history by removing MongoDB-specific fields
+    conversationHistory = rawHistory.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
     contextInfo += `This is part of an ongoing conversation with ${conversationHistory.length} previous messages.\n`;
     console.log(
       `[Pipeline] Using conversation history with ${conversationHistory.length} messages`

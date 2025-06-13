@@ -43,7 +43,7 @@ describe("BeaconMessage Save Test", () => {
       },
       response: {
         content: "Test response from beacon",
-        role: "agent",
+        role: "assistant",
         messageID: "test_response_123",
         replyTo: "test_message_123",
         ts: Math.floor(Date.now() / 1000),

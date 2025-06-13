@@ -80,7 +80,7 @@ async function initializeWorker() {
         let conversation = null;
         try {
           console.log("[Worker] Analyzing conversation context...");
-          const existingConversation = analyzeConversation(
+          const existingConversation = await analyzeConversation(
             job.data.beaconMessage.message,
             job.data.beaconMessage.origin,
             job.data.beaconMessage.user
@@ -108,11 +108,22 @@ async function initializeWorker() {
             // Attach conversation to job data for pipeline processing
             job.data.conversation = conversation;
           } else {
-            // Load existing conversation (future implementation)
+            // Load existing conversation and add current user message
             console.log(
               `[Worker] Loading existing conversation: ${existingConversation.refId}`
             );
             conversation = existingConversation.data;
+
+            // Add the current user message to summaryHistory
+            conversation.summaryHistory.push({
+              role: job.data.beaconMessage.message.role,
+              content: job.data.beaconMessage.message.content,
+            });
+
+            // Save the conversation with the new user message before processing
+            await conversation.save();
+            console.log("[Worker] Added user message to existing conversation");
+
             job.data.conversation = conversation;
           }
         } catch (error) {
@@ -147,7 +158,7 @@ async function initializeWorker() {
                 message: job.data.beaconMessage.message,
                 response: {
                   content: responseMessage,
-                  role: "agent",
+                  role: "assistant",
                   messageID: `response_${job.data.beaconMessage.message.messageID}`,
                   replyTo: job.data.beaconMessage.message.messageID,
                   ts: Math.floor(Date.now() / 1000),
@@ -163,13 +174,20 @@ async function initializeWorker() {
               );
 
               // Update conversation history
+              console.log(
+                `[Worker] Before update - conversation history length: ${conversation.history.length}, summaryHistory length: ${conversation.summaryHistory.length}`
+              );
+
               conversation.history.push(beaconMessage._id);
               conversation.summaryHistory.push({
-                role: "agent",
+                role: "assistant",
                 content: responseMessage,
               });
 
               await conversation.save();
+              console.log(
+                `[Worker] After update - conversation history length: ${conversation.history.length}, summaryHistory length: ${conversation.summaryHistory.length}`
+              );
               console.log(
                 "[Worker] Conversation updated with BeaconMessage and response"
               );

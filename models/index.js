@@ -6,7 +6,7 @@ const { Schema, model, Types } = mongoose;
 const MsgMetaSchema = new Schema(
   {
     content: { type: String, required: true },
-    role: { type: String, enum: ["user", "agent"], required: true },
+    role: { type: String, enum: ["user", "assistant"], required: true },
     messageID: { type: String, required: true }, // native msg-id in gateway
     replyTo: { type: String, default: null },
     ts: { type: Number, required: true }, // unix-epoch seconds
@@ -47,7 +47,7 @@ const ConversationSchema = new Schema(
   {
     summaryHistory: [
       {
-        role: { type: String, enum: ["user", "agent"], required: true },
+        role: { type: String, enum: ["user", "assistant"], required: true },
         content: { type: String, required: true },
       },
     ],

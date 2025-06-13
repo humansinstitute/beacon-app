@@ -121,7 +121,7 @@ describe("Conversation Tracking Integration", () => {
       message: mockMessage,
       response: {
         content: responseMessage,
-        role: "agent",
+        role: "assistant",
         messageID: `response_${mockMessage.messageID}`,
         replyTo: mockMessage.messageID,
         ts: expect.any(Number),
@@ -139,7 +139,7 @@ describe("Conversation Tracking Integration", () => {
       message: mockMessage,
       response: {
         content: responseMessage,
-        role: "agent",
+        role: "assistant",
         messageID: `response_${mockMessage.messageID}`,
         replyTo: mockMessage.messageID,
         ts: expect.any(Number),
@@ -165,7 +165,7 @@ describe("Conversation Tracking Integration", () => {
       conversation: {
         summaryHistory: [
           { role: "user", content: "Hey what can you do?" },
-          { role: "agent", content: "I can help with various tasks!" },
+          { role: "assistant", content: "I can help with various tasks!" },
           { role: "user", content: "What else can you do?" },
         ],
       },
@@ -190,7 +190,7 @@ describe("Conversation Tracking Integration", () => {
       ),
       [
         { role: "user", content: "Hey what can you do?" },
-        { role: "agent", content: "I can help with various tasks!" },
+        { role: "assistant", content: "I can help with various tasks!" },
       ]
     );
   });

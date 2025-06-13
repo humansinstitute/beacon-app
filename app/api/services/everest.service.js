@@ -12,13 +12,35 @@ async function callEverest(agent, userContext) {
   const apiKey = process.env.EVEREST_API;
   const url = `${baseUrl.replace(/\/$/, "")}/v2/agent`;
 
+  // DEBUG: Log agent data before JSON serialization to catch escaping issues
+  console.log(
+    "[Everest Service] DEBUG - Agent userPrompt preview:",
+    agent.chat?.userPrompt?.substring(0, 200) + "..."
+  );
+  console.log(
+    "[Everest Service] DEBUG - Agent userPrompt contains backslash:",
+    agent.chat?.userPrompt?.includes("\\")
+  );
+
+  let requestBody;
+  try {
+    requestBody = JSON.stringify(agent);
+    console.log("[Everest Service] DEBUG - JSON serialization successful");
+  } catch (jsonError) {
+    console.error(
+      "[Everest Service] DEBUG - JSON serialization failed:",
+      jsonError
+    );
+    throw new Error(`JSON serialization error: ${jsonError.message}`);
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(agent),
+    body: requestBody,
   });
 
   if (!response.ok) {
