@@ -136,6 +136,12 @@ async function initializeWorker() {
                 "[Worker] Creating BeaconMessage with conversation reference..."
               );
 
+              // Construct proper origin object with userNpub
+              const originWithUserNpub = {
+                ...job.data.beaconMessage.origin,
+                userNpub: job.data.beaconMessage.user?.npub || null,
+              };
+
               // Create BeaconMessage with conversation reference
               const beaconMessage = new BeaconMessage({
                 message: job.data.beaconMessage.message,
@@ -146,7 +152,7 @@ async function initializeWorker() {
                   replyTo: job.data.beaconMessage.message.messageID,
                   ts: Math.floor(Date.now() / 1000),
                 },
-                origin: job.data.beaconMessage.origin,
+                origin: originWithUserNpub,
                 conversationRef: conversation._id,
                 flowRef: null, // Will be set when flows are implemented
               });

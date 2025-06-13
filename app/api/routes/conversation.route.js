@@ -24,6 +24,12 @@ router.get(
 // Get recent beacon messages (across multiple active conversations)
 router.get("/messages/recent", conversationController.getRecentBeaconMessages);
 
+// Get messages by npub
+router.get(
+  "/message/:npub/:messagenumber",
+  conversationController.getMessagesByNpub
+);
+
 // Create a new conversation
 router.post("/", conversationController.createNewConversation);
 
