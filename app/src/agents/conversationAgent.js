@@ -21,14 +21,14 @@ async function conversationAgent(message, context, history) {
 
   const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called teh Beacon. YOu are wise and friendly and provide guidance to those in need.`;
 
-  context = context + dayToday;
+  context = context + "The date today is: " + dayToday;
 
   const callDetails = {
     callID: uuidv4(),
     model: {
-      provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick.
+      provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick. "groq" | "openai"
       // model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      model: "meta-llama/llama-4-scout-17b-16e-instruct", // // *** SET THIS FOR AN AGENT "gpt-4o" default model can be overridden at run time.
+      model: "meta-llama/llama-4-scout-17b-16e-instruct", // // *** SET THIS FOR AN AGENT "gpt-4o" "meta-llama/llama-4-scout-17b-16e-instruct" default model can be overridden at run time.
       callType: "This is a chat Call", // *** SET THIS FOR AN AGENT
       type: "completion",
       // max_tokens: 4096,

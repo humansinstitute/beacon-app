@@ -55,8 +55,6 @@ if (process.env.NODE_ENV !== "test") {
   // Start server and store the httpServer instance
   (async () => {
     await connectDB();
-    // Import and start the worker in non-test environments
-    await import("./app/workers/beaconMessage.worker.js");
     httpServer = app.listen(port, () => {
       console.log(`Server running on http://localhost:${port}`);
     });
