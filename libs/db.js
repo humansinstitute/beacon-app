@@ -2,8 +2,24 @@ import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 let mongod; // To store the MongoMemoryServer instance
+let activeConnection = null; // Cache for active connection
 
 const connectDB = async () => {
+  // Return existing connection if available
+  if (activeConnection) {
+    return activeConnection;
+  }
+
+  // Check if Mongoose is already connected
+  if (mongoose.connection.readyState === 1) {
+    // 1 = connected
+    activeConnection = mongoose.connection;
+    if (process.env.NODE_ENV !== "test") {
+      console.log(`MongoDB already connected: ${mongoose.connection.host}`);
+    }
+    return activeConnection;
+  }
+
   try {
     let mongoUri;
     if (process.env.NODE_ENV === "test") {
@@ -18,11 +34,17 @@ const connectDB = async () => {
 
     if (process.env.NODE_ENV !== "test") {
       console.log(`MongoDB Connected: ${conn.connection.host}`);
+      console.log(`Database name: ${conn.connection.name}`);
+      console.log(
+        `Connection URI: ${mongoUri.replace(/\/\/[^:]+:[^@]+@/, "//***:***@")}`
+      );
     }
-    return conn.connection; // Return the connection object
+
+    activeConnection = conn.connection;
+    return activeConnection;
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
-    process.exit(1);
+    throw error; // Throw instead of exiting to allow error handling
   }
 };
 

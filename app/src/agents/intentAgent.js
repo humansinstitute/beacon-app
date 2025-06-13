@@ -8,14 +8,6 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-// Get current date in a readable format if required for agent.
-const dayToday = new Date().toLocaleDateString("en-AU", {
-  weekday: "long",
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
-
 /**
  * Sanitizes message content to prevent JSON serialization issues
  * @param {string} message - The message content to sanitize
@@ -35,7 +27,7 @@ function sanitizeMessageContent(message) {
     .replace(/\t/g, "\\t"); // Escape tabs
 }
 
-async function conversationAgent(message, context, history) {
+async function intentAgent(message, context, history) {
   //FILL IN VARIABLES
 
   // Sanitize the message content to prevent JSON serialization issues
@@ -49,9 +41,24 @@ async function conversationAgent(message, context, history) {
     JSON.stringify(sanitizedMessage)
   );
 
-  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called teh Beacon. YOu are wise and friendly and provide guidance to those in need.`;
+  const systemPromptInput = `I would like you to analyse a particular conversation for intent. You will receive a message and the previous messages in a conversation history. Your job will be to analyse it for intent against a short series of potential options with the default use case being "conversation".
+  
+  The list of options and their reasoning is given below: 
+  
+  1. 'conversation' = this is the default use case. You should respond with convesation if there are no other obvious use cases.
+  2. 'research' = this is the questions which would require looking up and researching data from one or more sources on the internet.
+  3. 'publish' = the user you are in conversation with is asking you to publish a messsage to nostr for them.
+  3. 'settings' = the user you are in conversation with is asking about their account or wants to change a setting for beacon. 
 
-  context = context + "The date today is: " + dayToday;
+  You should respond with a JSON object in the format: 
+
+  { 
+    reasoning: "string that gives reasoning as to why you have selected a specific intent",
+    intent: "conversation" // One of the options above conversation | research | publish | settings
+    confidence: number // A confidence rating between 1 and 100.
+  }
+
+  `;
 
   const callDetails = {
     callID: uuidv4(),
@@ -59,16 +66,16 @@ async function conversationAgent(message, context, history) {
       provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick. "groq" | "openai"
       // model: "meta-llama/llama-4-scout-17b-16e-instruct",
       model: "meta-llama/llama-4-scout-17b-16e-instruct", // // *** SET THIS FOR AN AGENT "gpt-4o" "meta-llama/llama-4-scout-17b-16e-instruct" default model can be overridden at run time.
-      callType: "This is a chat Call", // *** SET THIS FOR AN AGENT
+      callType: "Set Intent for a conversation", // *** SET THIS FOR AN AGENT
       type: "completion",
-      // max_tokens: 4096,
-      temperature: 0.8, // *** SET THIS FOR AN AGENT
+      type: "json_object",
+      temperature: 0.5, // *** SET THIS FOR AN AGENT
     },
     chat: {
       // *** THIS IS SET ON THE FLY per CHAT - except for system input
       userPrompt: sanitizedMessage,
       systemPrompt: systemPromptInput, // *** SET THIS FOR AN AGENT
-      messageContext: context,
+      messageContext: "",
       messageHistory: history,
     },
     origin: {
@@ -92,4 +99,4 @@ async function conversationAgent(message, context, history) {
   // console.log(callDetails);
   return callDetails;
 }
-export default conversationAgent;
+export default intentAgent;

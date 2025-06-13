@@ -5,8 +5,7 @@ const { Schema, model, Types } = mongoose;
 const RefsSchema = new Schema(
   {
     beaconMessageId: {
-      type: Types.ObjectId,
-      ref: "BeaconMessage",
+      type: String,
       default: null,
     },
     conversationId: {

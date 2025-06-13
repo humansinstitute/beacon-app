@@ -1,0 +1,43 @@
+Plannning:
+
+- Always attempt to generate a plan prior to implementation.
+- Plans should be staged with human testable outputs at each stage
+- Follow test driven developement patterns and iuse the firt stage to genreate unit tests (these qwill be expected to fail)
+- Unit test should use JEST
+- Always review files as needed in plan mode to improve your plan, don't leave this to the act phase
+- When planning your tasks always start with back end first the process should be "Data models > CRUD data management > Logic and processing > UI"
+- To facilitate testing, consider mocks and hooks that can facilitate a human check at each stage and then remove in the following step once confirmed.
+- Each stage in a plan should include the test plan for the human manager to execute.
+- A stage should focus on making one change at a time.
+- Confirmation and checking for mistakes as you go is critical to high momentum software development, don't skip this.
+- The final plan prior to implementation should be a detailed and verbose plan with relevant code / psudo code examnples that a junior develper could follow.
+
+Act:
+
+- When acting on a plan, follow the stage plan and the scope of changes you have been asked to make.
+- Always stop at the end of a stage and seek confirmation from the user that human testing has passed
+- Always restate the testing steps and the remaining stages of the plan on completion of a stage implementaiton.
+- Always state the next action from the plan and the remaining planing steps in your completion message.
+- Note all aspects of the system are run from the PM2 ecosystem.config.cjs
+- Please be aware that processes may already be running and need stopping / restarting to test effectively
+
+DevOps:
+
+- The project uses PM2 to manage services, start, end, restart loggin etc.
+- When testing the prohect it is already likely running locally using PM2
+- Project can be fully setup with PM2 restart ecosystem.config.cjs
+- PM2 is always run from the root of the project direcory and uses the root as the working directory of the project.
+
+Module Systems rules
+
+- Project uses ES Modules exclusively - ensure package.json has "type": "module"
+- Never mix import/export with require() in the same file
+- For main module detection in ES Modules, use: process.argv[1] === fileURLToPath(import.meta.url)
+- Always import fileURLToPath from 'url' when converting import.meta.url to paths
+- Worker scripts must use ES Module main detection pattern, not require.main === module
+- When converting CommonJS to ESM, audit ALL files for require.main checks before changing package.json
+- Before adding "type": "module" to package.json, search project for "require.main === module"
+- Convert all require.main checks to ES Module equivalent before package.json change
+- Update Jest config to handle ES Modules (may need --experimental-vm-modules)
+- Test both main app startup AND worker scripts after conversion
+- Worker scripts need command-line argument handling updated for ESM pattern

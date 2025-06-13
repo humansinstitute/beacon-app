@@ -45,6 +45,14 @@ export async function getNextAction(flowId) {
   );
 }
 
+/** 5. Get last n messages for a specific npub (most recent first) */
+export async function getMessagesByNpub(npub, messageCount) {
+  return BeaconMessage.find({ "origin.userNpub": npub })
+    .sort({ "message.ts": -1 }) // Most recent first
+    .limit(parseInt(messageCount))
+    .exec();
+}
+
 /* Insert / Update Functions */
 
 export async function createConversation(summaryHistory = [], history = []) {

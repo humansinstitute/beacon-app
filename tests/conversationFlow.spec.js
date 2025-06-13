@@ -28,7 +28,7 @@ async function seedMockData() {
     workflow: [
       {
         order: 1,
-        action: { type: "agent", target: "conversation" },
+        action: { type: "assistant", target: "conversation" },
         output: "filled-in answer",
         exit: { field: "output", eval: "!=", value: null },
         state: "closed",
@@ -59,7 +59,7 @@ async function seedMockData() {
       },
       response: {
         content: `agent reply ${i}`,
-        role: "agent",
+        role: "assistant",
         messageID: `a${i}`,
         replyTo: `u${i}`,
         ts: Date.now() / 1000 + i + 0.1,

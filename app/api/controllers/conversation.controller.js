@@ -165,6 +165,28 @@ export async function getRecentBeaconMessages(req, res, next) {
   }
 }
 
+export async function getMessagesByNpub(req, res, next) {
+  try {
+    const { npub, messagenumber } = req.params;
+
+    // Validate messagenumber is a positive integer
+    const messageCount = parseInt(messagenumber);
+    if (isNaN(messageCount) || messageCount <= 0) {
+      return res.status(400).json({
+        message: "Message number must be a positive integer",
+      });
+    }
+
+    const messages = await conversationService.getMessagesByNpub(
+      npub,
+      messageCount
+    );
+    res.json(messages);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createNewConversation(req, res, next) {
   try {
     const { summaryHistory, history } = req.body;
