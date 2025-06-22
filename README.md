@@ -17,7 +17,9 @@ A trojan horse for freedom tech.
 
 ## Beacon App 
 
-Is the open soruce code behind a reference implementation for beacon. It will provide both WhatsApp and Signal gateways to access your Nostr based Beacon account. 
+Is the open source code behind a reference implementation for beacon. It will provide both WhatsApp and Signal gateways to access your Nostr based Beacon account. 
 
 - Beacon-App: defines the agent framework to manage your requests and deliver specific user flows for different pre-defined experiences inside the app. 
-- Beacon-signer: is a remote signing server which ca either be self hosted on a laptop and provides signing of Beacon activities cordinated via NostrMQ and gateways. 
+- Beacon-signer: is a remote signing server which can either be self hosted on a laptop and provides signing of Beacon activities cordinated via NostrMQ and gateways. 
+
+
