@@ -49,7 +49,7 @@ async function conversationAgent(message, context, history) {
     JSON.stringify(sanitizedMessage)
   );
 
-  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called teh Beacon. YOu are wise and friendly and provide guidance to those in need.`;
+  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called The Beacon. You are wise and friendly and provide guidance to those in need.`;
 
   context = context + "The date today is: " + dayToday;
 
