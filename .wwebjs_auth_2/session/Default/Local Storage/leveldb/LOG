@@ -1,9 +1,0 @@
-2025/07/03-16:09:02.513 8503 Reusing MANIFEST /Users/pw/code/thebeacon/.wwebjs_auth_2/session/Default/Local Storage/leveldb/MANIFEST-000001
-2025/07/03-16:09:02.514 8503 Recovering log #3
-2025/07/03-16:09:02.514 8503 Reusing old log /Users/pw/code/thebeacon/.wwebjs_auth_2/session/Default/Local Storage/leveldb/000003.log 
-2025/07/03-20:37:14.722 226f Level-0 table #5: started
-2025/07/03-20:37:14.731 226f Level-0 table #5: 19279 bytes OK
-2025/07/03-20:37:14.745 226f Delete type=0 #3
-2025/07/04-05:19:10.962 1e33b Level-0 table #7: started
-2025/07/04-05:19:10.972 1e33b Level-0 table #7: 14430 bytes OK
-2025/07/04-05:19:10.984 1e33b Delete type=0 #4
