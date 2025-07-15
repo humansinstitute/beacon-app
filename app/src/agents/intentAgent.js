@@ -43,18 +43,19 @@ async function intentAgent(message, context, history) {
 
   const systemPromptInput = `I would like you to analyse a particular conversation for intent. You will receive a message and the previous messages in a conversation history. Your job will be to analyse it for intent against a short series of potential options with the default use case being "conversation".
   
-  The list of options and their reasoning is given below: 
+  The list of options and their reasoning is given below:
   
-  1. 'conversation' = this is the default use case. You should respond with convesation if there are no other obvious use cases.
+  1. 'conversation' = this is the default use case. You should respond with conversation if there are no other obvious use cases.
   2. 'research' = this is the questions which would require looking up and researching data from one or more sources on the internet.
-  3. 'publish' = the user you are in conversation with is asking you to publish a messsage to nostr for them.
-  3. 'settings' = the user you are in conversation with is asking about their account or wants to change a setting for beacon. 
+  3. 'publish' = the user you are in conversation with is asking you to publish a message to nostr for them.
+  4. 'settings' = the user you are in conversation with is asking about their account or wants to change a setting for beacon.
+  5. 'cashu' = the user is asking about Bitcoin, Lightning Network, payments, or Cashu operations. Keywords include: "bitcoin", "sats", "lightning", "invoice", "payment", "balance", "wallet", "cashu", "pay", "send", "receive", "lnbc" (Lightning invoice prefix).
 
-  You should respond with a JSON object in the format: 
+  You should respond with a JSON object in the format:
 
-  { 
+  {
     reasoning: "string that gives reasoning as to why you have selected a specific intent",
-    intent: "conversation" // One of the options above conversation | research | publish | settings
+    intent: "conversation" // One of the options above conversation | research | publish | settings | cashu
     confidence: number // A confidence rating between 1 and 100.
   }
 

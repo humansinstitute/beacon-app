@@ -16,6 +16,9 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
+// WhatsApp Gateway Worker starting
+console.log("WhatsApp Gateway Worker starting...");
+
 // Import environment validation and worker functions
 import { validateBeaconAuth } from "../../utils/envValidation.js";
 import {
@@ -55,15 +58,15 @@ function releaseLock() {
 }
 
 // Only run worker initialization if this is the main module
-// Use a different approach that works with Jest
+// PM2 changes process.argv[1] to ProcessContainer.js, so we need a different approach
 let isMainModule = false;
-try {
-  isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
-} catch (e) {
-  // In test environment, import.meta might not be available
-  // Check if we're in a test environment
-  isMainModule =
-    !process.env.JEST_WORKER_ID && !process.env.NODE_ENV?.includes("test");
+
+// Check if we're in a test environment first
+if (process.env.JEST_WORKER_ID || process.env.NODE_ENV === "test") {
+  isMainModule = false;
+} else {
+  // For PM2 and direct execution, always initialize unless explicitly in test mode
+  isMainModule = true;
 }
 
 if (isMainModule) {
