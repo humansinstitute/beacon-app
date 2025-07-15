@@ -196,37 +196,61 @@ async function initializeWorker() {
               callID: intentResponse.callID,
               billingID: intentResponse.billingID,
               messageType: typeof intentResponse.message,
-              messageLength: intentResponse.message?.length,
-              messagePreview: intentResponse.message?.substring(0, 200),
+              messageLength:
+                typeof intentResponse.message === "string"
+                  ? intentResponse.message.length
+                  : JSON.stringify(intentResponse.message).length,
+              messagePreview:
+                typeof intentResponse.message === "string"
+                  ? intentResponse.message.substring(0, 200)
+                  : JSON.stringify(intentResponse.message).substring(0, 200),
               usage: intentResponse.usage,
             });
 
             let intentResult;
             try {
-              console.log(
-                "[Worker] DEBUG - Attempting to parse intent response..."
-              );
+              console.log("[Worker] DEBUG - Processing intent response...");
               console.log(
                 "[Worker] DEBUG - Full response message:",
                 JSON.stringify(intentResponse.message)
               );
-              intentResult = JSON.parse(intentResponse.message);
-              console.log(
-                "[Worker] DEBUG - Successfully parsed intent result:",
-                intentResult
-              );
+
+              // Check if message is already an object or needs parsing
+              if (
+                typeof intentResponse.message === "object" &&
+                intentResponse.message !== null
+              ) {
+                intentResult = intentResponse.message;
+                console.log(
+                  "[Worker] DEBUG - Intent response is already an object:",
+                  intentResult
+                );
+              } else if (typeof intentResponse.message === "string") {
+                intentResult = JSON.parse(intentResponse.message);
+                console.log(
+                  "[Worker] DEBUG - Successfully parsed intent result:",
+                  intentResult
+                );
+              } else {
+                throw new Error(
+                  `Unexpected message type: ${typeof intentResponse.message}`
+                );
+              }
             } catch (parseError) {
               console.error(
-                "[Worker] ERROR - Failed to parse intent response:",
+                "[Worker] ERROR - Failed to process intent response:",
                 {
                   error: parseError.message,
                   rawMessage: intentResponse.message,
                   messageType: typeof intentResponse.message,
-                  messageLength: intentResponse.message?.length,
+                  messageLength:
+                    typeof intentResponse.message === "string"
+                      ? intentResponse.message.length
+                      : JSON.stringify(intentResponse.message).length,
                 }
               );
               console.warn(
-                "[Worker] Failed to parse intent response, defaulting to conversation"
+                "[Worker] Failed to process intent response, defaulting to conversation"
               );
               intentResult = { intent: "conversation" };
             }
