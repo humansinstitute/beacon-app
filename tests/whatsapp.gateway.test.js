@@ -29,13 +29,14 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
     process.env.WA_GATEWAY_NPUB = MOCK_WA_GATEWAY_NPUB;
     process.env.SERVER_URL = MOCK_SERVER_URL;
     process.env.API_SERVER_PORT = MOCK_API_SERVER_PORT;
+    process.env.BEACON_AUTH = "test-auth-token";
     dateNowSpy = jest.spyOn(global.Date, "now").mockReturnValue(MOCK_DATE_NOW);
 
     try {
       // Dynamically import the function to ensure mocks are applied.
       // This will fail if the export doesn't exist, which is correct for TDD.
       const module = await import(
-        "../app/workers/gateways/whatsapp.gateway.worker.js"
+        "../app/workers/gateways/whatsapp.gateway.functions.js"
       );
       // Ensure we only assign if the import is successful and the export exists
       if (module && typeof module.transformAndQueueMessage === "function") {
@@ -129,7 +130,13 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
     expect(axios.post).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledWith(
       `${MOCK_SERVER_URL}:${MOCK_API_SERVER_PORT}/api/queue/add/bm_in`,
-      expectedBeaconMessagePayload
+      expectedBeaconMessagePayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-auth-token",
+        },
+      }
     );
   });
 
@@ -166,7 +173,13 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
     expect(axios.post).toHaveBeenCalledTimes(1);
     expect(axios.post).toHaveBeenCalledWith(
       `${MOCK_SERVER_URL}:${MOCK_API_SERVER_PORT}/api/queue/add/bm_in`,
-      expectedBeaconMessagePayload
+      expectedBeaconMessagePayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-auth-token",
+        },
+      }
     );
   });
 
@@ -194,6 +207,37 @@ describe("WhatsApp Gateway - transformAndQueueMessage", () => {
       expect.stringContaining("Error sending message to beacon queue"),
       expect.any(Error)
     );
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("should throw an error when BEACON_AUTH environment variable is missing", async () => {
+    if (typeof transformAndQueueMessage !== "function") {
+      throw new Error(
+        "transformAndQueueMessage is not defined. Ensure it is exported from the worker."
+      );
+    }
+
+    // Temporarily remove BEACON_AUTH
+    const originalBeaconAuth = process.env.BEACON_AUTH;
+    delete process.env.BEACON_AUTH;
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Expect the function to throw an error when BEACON_AUTH is missing
+    await expect(
+      transformAndQueueMessage(sampleWhatsAppMessage)
+    ).rejects.toThrow("Authorization configuration error");
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "[WhatsApp Gateway] BEACON_AUTH environment variable is not set"
+      )
+    );
+
+    // Restore BEACON_AUTH
+    process.env.BEACON_AUTH = originalBeaconAuth;
     consoleErrorSpy.mockRestore();
   });
 });

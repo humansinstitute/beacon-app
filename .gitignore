@@ -11,6 +11,7 @@ output/
 
 # Gateways
 # Ignore WhatsApp Web related folders
+*.wwebjs*
 .wwebjs_auth/
 .wwebjs_cache/
 .wwebjs_auth*/            # matches .wwebjs_auth/, .wwebjs_auth_19/, etc.

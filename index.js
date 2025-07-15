@@ -1,8 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config(); // Load .env file first
+
 import express from "express";
 import conversationRoutes from "./app/api/routes/conversation.route.js";
 import queueRoutes from "./app/api/routes/queue.routes.js"; // Import new queue routes
 import userRoutes from "./app/api/routes/user.route.js";
 import { connectDB, disconnectDB } from "./libs/db.js"; // Import new DB functions
+import { validateEnvironment } from "./app/utils/envValidation.js"; // Import environment validation
 
 const app = express();
 const port = process.env.API_SERVER_PORT || 3256;
@@ -24,6 +28,23 @@ app.use((err, req, res, next) => {
 
 async function startServer() {
   try {
+    // Validate environment variables before starting any services
+    console.log("Validating environment configuration...");
+    const envValidation = validateEnvironment();
+
+    if (!envValidation.success) {
+      console.error("Environment validation failed:");
+      envValidation.errors.forEach((error) => {
+        console.error(`  - ${error}`);
+      });
+      console.error(
+        "Please configure the required environment variables and restart the application."
+      );
+      process.exit(1);
+    }
+
+    console.log("✓ Environment validation successful:", envValidation.message);
+
     await connectDB(); // Connect to DB using the new centralized function
     // The console log for DB connection is now in connectDB
 
@@ -54,6 +75,23 @@ let httpServer;
 if (process.env.NODE_ENV !== "test") {
   // Start server and store the httpServer instance
   (async () => {
+    // Validate environment variables before starting any services
+    console.log("Validating environment configuration...");
+    const envValidation = validateEnvironment();
+
+    if (!envValidation.success) {
+      console.error("Environment validation failed:");
+      envValidation.errors.forEach((error) => {
+        console.error(`  - ${error}`);
+      });
+      console.error(
+        "Please configure the required environment variables and restart the application."
+      );
+      process.exit(1);
+    }
+
+    console.log("✓ Environment validation successful:", envValidation.message);
+
     await connectDB();
     httpServer = app.listen(port, () => {
       console.log(`Server running on http://localhost:${port}`);
