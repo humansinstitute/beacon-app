@@ -1,7 +1,11 @@
 import express from "express";
 import * as conversationController from "../controllers/conversation.controller.js";
+import { requireAuth } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
+
+// Apply authentication middleware to all routes
+router.use(requireAuth);
 
 // Get conversation history
 router.get(

@@ -15,6 +15,13 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
+      env_file: ".env",
+      env: {
+        NODE_ENV: "production",
+      },
+      env_development: {
+        NODE_ENV: "development",
+      },
     },
     {
       name: "beacon-worker",
@@ -32,6 +39,13 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
+      env_file: ".env",
+      env: {
+        NODE_ENV: "production",
+      },
+      env_development: {
+        NODE_ENV: "development",
+      },
     },
     // {
     //   name: "beacon-worker-out",
@@ -65,6 +79,13 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
+      env_file: ".env",
+      env: {
+        NODE_ENV: "production",
+      },
+      env_development: {
+        NODE_ENV: "development",
+      },
     },
   ],
 };

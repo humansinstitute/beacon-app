@@ -1,5 +1,7 @@
 // app/utils/userUtils.js
 
+import { validateBeaconAuth } from "./envValidation.js";
+
 /**
  * Looks up a user by alias type and reference using the API endpoint.
  * @param {Object} alias - The alias object containing type and ref.
@@ -13,6 +15,15 @@ export async function lookupUserByAlias(alias) {
     return null;
   }
 
+  // Validate BEACON_AUTH environment variable
+  const authValidation = validateBeaconAuth();
+  if (!authValidation.success) {
+    console.error(`[UserUtils] ${authValidation.error}`);
+    throw new Error(
+      `Authorization configuration error: ${authValidation.error}`
+    );
+  }
+
   const url = `http://localhost:3256/api/user/lookup?type=${encodeURIComponent(
     alias.type
   )}&ref=${encodeURIComponent(alias.ref)}`;
@@ -23,6 +34,7 @@ export async function lookupUserByAlias(alias) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.BEACON_AUTH}`,
       },
     });
 
