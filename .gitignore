@@ -19,6 +19,7 @@ output/
 .wwebjs.lock              # ignore the browser-lock file
 .wwebjs_auth_19
 *whatsapp_qr*.png
+.wwebjs*
 
 #SQLlite
 nostr.db

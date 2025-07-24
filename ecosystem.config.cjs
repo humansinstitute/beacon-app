@@ -71,21 +71,13 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
-      error_file: "logs/beacon-worker-wa/error.json",
-      out_file: "logs/beacon-worker-wa/out.json",
+      error_file: "logs/beacon-worker-wa/error.log",
+      out_file: "logs/beacon-worker-wa/out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
-      log_type: "json",
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
-      env_file: ".env",
-      env: {
-        NODE_ENV: "production",
-      },
-      env_development: {
-        NODE_ENV: "development",
-      },
     },
   ],
 };

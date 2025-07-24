@@ -31,9 +31,12 @@ console.log(
 
 import { lookupUserByAlias } from "../utils/userUtils.js";
 import { processConversationPipeline } from "../src/pipeline/conversation.js";
+import { processCashuPipeline } from "../src/pipeline/cashuInteraction.pipeline.js";
 import { addMessageToQueue } from "../utils/queueUtils.js";
 import { analyzeConversation } from "../utils/messageUtils.js";
 import { Conversation, BeaconMessage } from "../../models/index.js";
+import intentAgent from "../src/agents/intentAgent.js";
+import { callEverest } from "../api/services/everest.service.js";
 
 // Initialize database connection and worker
 async function initializeWorker() {
@@ -136,8 +139,148 @@ async function initializeWorker() {
         }
 
         try {
-          // Process the message through the conversation pipeline
-          const responseMessage = await processConversationPipeline(job.data);
+          // Classify message intent and route to appropriate pipeline
+          let responseMessage;
+
+          try {
+            // Classify message intent
+            console.log("[Worker] Classifying message intent...");
+            console.log(
+              "[Worker] DEBUG - Message content:",
+              JSON.stringify(job.data.beaconMessage.message.content)
+            );
+
+            // Clean conversation history to remove MongoDB _id properties that cause Groq API errors
+            let cleanedHistory = [];
+            if (job.data.conversation?.summaryHistory) {
+              cleanedHistory = job.data.conversation.summaryHistory.map(
+                (msg) => ({
+                  role: msg.role,
+                  content: msg.content,
+                  // Explicitly exclude _id and other MongoDB properties
+                })
+              );
+              console.log("[Worker] DEBUG - Cleaned conversation history:", {
+                originalLength: job.data.conversation.summaryHistory.length,
+                cleanedLength: cleanedHistory.length,
+                sampleCleaned: cleanedHistory[0] || null,
+              });
+            }
+
+            const intentAgentData = await intentAgent(
+              job.data.beaconMessage.message.content,
+              `The users name is: ${
+                job.data.beaconMessage.user?.name || "Unknown"
+              }.\n`,
+              cleanedHistory
+            );
+
+            console.log("[Worker] DEBUG - Intent agent data created:", {
+              callID: intentAgentData.callID,
+              model: intentAgentData.model,
+              userPrompt: intentAgentData.chat.userPrompt,
+              systemPromptPreview:
+                intentAgentData.chat.systemPrompt.substring(0, 200) + "...",
+            });
+
+            // Call Everest to get intent classification
+            console.log(
+              "[Worker] DEBUG - Calling Everest for intent classification..."
+            );
+            const intentResponse = await callEverest(intentAgentData, {
+              userID: job.data.beaconMessage.user?._id,
+              userNpub: job.data.beaconMessage.user?.npub,
+            });
+
+            console.log("[Worker] DEBUG - Raw Everest response:", {
+              callID: intentResponse.callID,
+              billingID: intentResponse.billingID,
+              messageType: typeof intentResponse.message,
+              messageLength:
+                typeof intentResponse.message === "string"
+                  ? intentResponse.message.length
+                  : JSON.stringify(intentResponse.message).length,
+              messagePreview:
+                typeof intentResponse.message === "string"
+                  ? intentResponse.message.substring(0, 200)
+                  : JSON.stringify(intentResponse.message).substring(0, 200),
+              usage: intentResponse.usage,
+            });
+
+            let intentResult;
+            try {
+              console.log("[Worker] DEBUG - Processing intent response...");
+              console.log(
+                "[Worker] DEBUG - Full response message:",
+                JSON.stringify(intentResponse.message)
+              );
+
+              // Check if message is already an object or needs parsing
+              if (
+                typeof intentResponse.message === "object" &&
+                intentResponse.message !== null
+              ) {
+                intentResult = intentResponse.message;
+                console.log(
+                  "[Worker] DEBUG - Intent response is already an object:",
+                  intentResult
+                );
+              } else if (typeof intentResponse.message === "string") {
+                intentResult = JSON.parse(intentResponse.message);
+                console.log(
+                  "[Worker] DEBUG - Successfully parsed intent result:",
+                  intentResult
+                );
+              } else {
+                throw new Error(
+                  `Unexpected message type: ${typeof intentResponse.message}`
+                );
+              }
+            } catch (parseError) {
+              console.error(
+                "[Worker] ERROR - Failed to process intent response:",
+                {
+                  error: parseError.message,
+                  rawMessage: intentResponse.message,
+                  messageType: typeof intentResponse.message,
+                  messageLength:
+                    typeof intentResponse.message === "string"
+                      ? intentResponse.message.length
+                      : JSON.stringify(intentResponse.message).length,
+                }
+              );
+              console.warn(
+                "[Worker] Failed to process intent response, defaulting to conversation"
+              );
+              intentResult = { intent: "conversation" };
+            }
+
+            console.log(
+              `[Worker] Intent classified as: ${intentResult.intent}`
+            );
+            console.log(
+              "[Worker] DEBUG - Full intent result object:",
+              intentResult
+            );
+
+            // Route to appropriate pipeline
+            if (intentResult.intent === "cashu") {
+              console.log("[Worker] Routing to Cashu pipeline...");
+              responseMessage = await processCashuPipeline(job.data);
+            } else {
+              console.log("[Worker] Routing to conversation pipeline...");
+              responseMessage = await processConversationPipeline(job.data);
+            }
+          } catch (intentError) {
+            console.error(
+              "[Worker] Error in intent classification or pipeline processing:",
+              intentError
+            );
+            // Fallback to conversation pipeline
+            console.log("[Worker] Falling back to conversation pipeline...");
+            responseMessage = await processConversationPipeline(job.data);
+          }
+
           console.log("[Worker] Pipeline response message:", responseMessage);
 
           // Create BeaconMessage and update conversation if we have one
