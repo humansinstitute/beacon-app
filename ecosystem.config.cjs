@@ -78,6 +78,19 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
+      env_file: ".env",
+      env: {
+        NODE_ENV: "production",
+        PM2_APP_NAME: "beacon-gate-wa",
+        PM2_INSTANCE_ID: "0",
+        WA_SHARED_SESSION: "true",
+      },
+      env_development: {
+        NODE_ENV: "development",
+        PM2_APP_NAME: "beacon-gate-wa",
+        PM2_INSTANCE_ID: "0",
+        WA_SHARED_SESSION: "true",
+      },
     },
   ],
 };
