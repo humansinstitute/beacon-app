@@ -51,13 +51,19 @@ async function intentAgent(message, context, history) {
   4. 'settings' = the user you are in conversation with is asking about their account or wants to change a setting for beacon.
   5. 'cashu' = the user is asking about Bitcoin, Lightning Network, payments, or Cashu operations. Keywords include: "bitcoin", "sats", "lightning", "invoice", "payment", "balance", "wallet", "cashu", "pay", "send", "receive", "lnbc" (Lightning invoice prefix).
 
-  You should respond with a JSON object in the format:
+  You should respond with a valid JSON object in the exact format below (ensure all field names are quoted):
 
   {
-    reasoning: "string that gives reasoning as to why you have selected a specific intent",
-    intent: "conversation" // One of the options above conversation | research | publish | settings | cashu
-    confidence: number // A confidence rating between 1 and 100.
+    "reasoning": "string that gives reasoning as to why you have selected a specific intent",
+    "intent": "conversation",
+    "confidence": 90
   }
+
+  IMPORTANT:
+  - All field names must be in double quotes
+  - The intent field must be one of: "conversation", "research", "publish", "settings", "cashu"
+  - The confidence field must be a number between 1 and 100
+  - Do not include comments in the JSON
 
   `;
 
@@ -68,7 +74,6 @@ async function intentAgent(message, context, history) {
       // model: "meta-llama/llama-4-scout-17b-16e-instruct",
       model: "meta-llama/llama-4-scout-17b-16e-instruct", // // *** SET THIS FOR AN AGENT "gpt-4o" "meta-llama/llama-4-scout-17b-16e-instruct" default model can be overridden at run time.
       callType: "Set Intent for a conversation", // *** SET THIS FOR AN AGENT
-      type: "completion",
       type: "json_object",
       temperature: 0.5, // *** SET THIS FOR AN AGENT
     },

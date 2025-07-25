@@ -69,13 +69,33 @@ export async function processCashuPipeline(jobData) {
 
     let operation;
     try {
-      operation = JSON.parse(response.message);
-      console.log("[CashuPipeline] Parsed operation:", operation);
+      // Handle both string and object responses from Everest service
+      if (typeof response.message === 'string') {
+        operation = JSON.parse(response.message);
+        console.log("[CashuPipeline] Parsed operation from JSON string:", operation);
+      } else if (typeof response.message === 'object' && response.message !== null) {
+        operation = response.message;
+        console.log("[CashuPipeline] Using operation object directly:", operation);
+      } else {
+        throw new Error(`Unexpected response.message type: ${typeof response.message}`);
+      }
+
+      // Validate operation structure
+      if (!operation || typeof operation !== 'object') {
+        throw new Error("Operation is not a valid object");
+      }
+      
+      if (!operation.type) {
+        throw new Error("Operation missing required 'type' field");
+      }
+
     } catch (error) {
       console.error(
         "[CashuPipeline] Failed to parse operation response:",
         error
       );
+      console.error("[CashuPipeline] Response.message type:", typeof response.message);
+      console.error("[CashuPipeline] Response.message value:", response.message);
       return "❌ I'm having trouble understanding your Cashu request. Please try rephrasing it.";
     }
 

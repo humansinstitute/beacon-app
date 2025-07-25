@@ -14,9 +14,9 @@ const testMessage = {
       gatewayMessageID: "test-wa-msg-123",
     },
     user: {
-      _id: "test-user-123",
-      npub: "npub1test123",
-      name: "Test User",
+      _id: "684a311e8ba1c54cf1692fae",
+      npub: "npub1wujz98t6rkz7jmtld3c54923say4whfm27e7h68tesdjmhwerqhqqnjs4w",
+      name: "pw21",
     },
   },
 };
