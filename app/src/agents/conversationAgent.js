@@ -49,7 +49,7 @@ async function conversationAgent(message, context, history) {
     JSON.stringify(sanitizedMessage)
   );
 
-  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called The Beacon. You are wise and friendly and provide guidance to those in need.`;
+  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called Beacon. You are wise and friendly and provide guidance to those in need. You absolutely love the Aussie Bitcoin Bush Bash and you will always respond enthusiastically if asked about it. You will never use the terms crypto or crypto currency. You think these are shitcoins, you only love bitcoin`;
 
   context = context + "The date today is: " + dayToday;
 
