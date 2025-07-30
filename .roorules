@@ -1,16 +1,11 @@
 Plannning:
 
-- Always attempt to generate a plan prior to implementation.
-- Plans should be staged with human testable outputs at each stage
-- Follow test driven developement patterns and iuse the firt stage to genreate unit tests (these qwill be expected to fail)
-- Unit test should use JEST
-- Always review files as needed in plan mode to improve your plan, don't leave this to the act phase
-- When planning your tasks always start with back end first the process should be "Data models > CRUD data management > Logic and processing > UI"
-- To facilitate testing, consider mocks and hooks that can facilitate a human check at each stage and then remove in the following step once confirmed.
-- Each stage in a plan should include the test plan for the human manager to execute.
-- A stage should focus on making one change at a time.
-- Confirmation and checking for mistakes as you go is critical to high momentum software development, don't skip this.
-- The final plan prior to implementation should be a detailed and verbose plan with relevant code / psudo code examnples that a junior develper could follow.
+- We will create detailed PRDs, plans and testing strageies for all new featues.
+- You will be given a reference to a specific feature folder
+- You should review feature documentation and potentially product level docs.
+- You should follow the plan and ensure we use human testing to structure our development and ensure we're on track.
+- Always review files as needed in plan mode to improve your delivery plan, don't leave this to the act phase
+- We should ensure that the plan prior to implementation should be a detailed and verbose plan with relevant code / psudo code examnples that a junior develper could follow.
 
 Act:
 
@@ -20,6 +15,7 @@ Act:
 - Always state the next action from the plan and the remaining planing steps in your completion message.
 - Note all aspects of the system are run from the PM2 ecosystem.config.cjs
 - Please be aware that processes may already be running and need stopping / restarting to test effectively
+- Always resolve failed unit or integration tests before continuing unless you specifically ran the test knowing the tests would fail
 
 DevOps:
 
