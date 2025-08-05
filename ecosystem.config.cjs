@@ -15,13 +15,7 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
-      env_file: ".env",
-      env: {
-        NODE_ENV: "production",
-      },
-      env_development: {
-        NODE_ENV: "development",
-      },
+      env_file: ".env"
     },
     {
       name: "beacon-worker",
@@ -39,31 +33,8 @@ module.exports = {
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
-      env_file: ".env",
-      env: {
-        NODE_ENV: "production",
-      },
-      env_development: {
-        NODE_ENV: "development",
-      },
+      env_file: ".env"
     },
-    // {
-    //   name: "beacon-worker-out",
-    //   script: "app/workers/generic.worker.js",
-    //   args: "bm_out",
-    //   instances: 1,
-    //   autorestart: true,
-    //   watch: false,
-    //   max_memory_restart: "1G",
-    //   error_file: "logs/beacon-worker-out/error.json",
-    //   out_file: "logs/beacon-worker-out/out.json",
-    //   log_date_format: "YYYY-MM-DD HH:mm:ss",
-    //   merge_logs: true,
-    //   log_type: "json",
-    //   max_size: "1M",
-    //   rotate_logs: true,
-    //   max_logs: 5,
-    // },
     {
       name: "beacon-gate-wa",
       script: "app/workers/gateways/whatsapp.gateway.worker.js",
@@ -71,26 +42,15 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
-      error_file: "logs/beacon-worker-wa/error.log",
-      out_file: "logs/beacon-worker-wa/out.log",
+      error_file: "logs/beacon-worker-wa/error.json",
+      out_file: "logs/beacon-worker-wa/out.json",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: true,
+      log_type: "json",
       max_size: "1M",
       rotate_logs: true,
       max_logs: 5,
       env_file: ".env",
-      env: {
-        NODE_ENV: "production",
-        PM2_APP_NAME: "beacon-gate-wa",
-        PM2_INSTANCE_ID: "0",
-        WA_SHARED_SESSION: "true",
-      },
-      env_development: {
-        NODE_ENV: "development",
-        PM2_APP_NAME: "beacon-gate-wa",
-        PM2_INSTANCE_ID: "0",
-        WA_SHARED_SESSION: "true",
-      },
     },
   ],
 };
