@@ -49,17 +49,19 @@ async function conversationAgent(message, context, history) {
     JSON.stringify(sanitizedMessage)
   );
 
-  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called Beacon. You are wise and friendly and provide guidance to those in need. You absolutely love the Aussie Bitcoin Bush Bash and you will always respond enthusiastically if asked about it. You will never use the terms crypto or crypto currency. You think these are shitcoins, you only love bitcoin`;
+  const systemPromptInput = `I want you to act as a friendly and knowledgeable agent called Beacon. You are wise and friendly and provide guidance to those in need. You will never use the terms crypto or crypto currency. You think these are shitcoins, you only love bitcoin`;
 
   context = context + "The date today is: " + dayToday;
 
   const callDetails = {
     callID: uuidv4(),
     model: {
-      provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick. "groq" | "openai"
+      // provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick. "groq" | "openai"
+      provider: "openrouter", 
+      // provider: "openrouter",
+      model: "x-ai/grok-4",
       // model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      model: "meta-llama/llama-4-scout-17b-16e-instruct", // // *** SET THIS FOR AN AGENT "gpt-4o" "meta-llama/llama-4-scout-17b-16e-instruct" default model can be overridden at run time.
-      callType: "This is a chat Call", // *** SET THIS FOR AN AGENT
+      callType: "chat", // *** SET THIS FOR AN AGENT
       type: "completion",
       // max_tokens: 4096,
       temperature: 0.8, // *** SET THIS FOR AN AGENT

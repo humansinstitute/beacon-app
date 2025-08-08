@@ -9,7 +9,7 @@ class NCToolsService {
     this.baseURL = process.env.NCTOOLS_API_URL || "http://localhost:3000";
     this.timeout = parseInt(process.env.NCTOOLS_TIMEOUT) || 30000;
     this.defaultMint =
-      process.env.CASHU_DEFAULT_MINT || "https://mint.minibits.cash/Bitcoin";
+      process.env.CASHU_DEFAULT_MINT;
 
     // Configure axios instance
     this.client = axios.create({

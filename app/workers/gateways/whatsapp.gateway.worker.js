@@ -450,7 +450,7 @@ async function startWhatsAppWorker() {
 
   let outboundWorker;
 
-  client.once("ready", () => {
+  client.once("ready", async () => {
     const startupDuration = Date.now() - workerStartTime;
     logDiagnostic("info", "WhatsApp client is ready!", {
       instanceId,
@@ -523,7 +523,44 @@ async function startWhatsAppWorker() {
       });
     }
 
-    // Add outbound worker after client is ready
+    // Wait for client to be fully ready for sending messages
+    const CLIENT_STABILIZATION_DELAY = 3000; // 3 seconds
+    logDiagnostic("info", "Waiting for client stabilization before starting outbound worker", {
+      delay: CLIENT_STABILIZATION_DELAY,
+      timestamp: new Date().toISOString(),
+    });
+
+    await new Promise(resolve => setTimeout(resolve, CLIENT_STABILIZATION_DELAY));
+
+    // Verify client is ready for sending messages before creating worker
+    try {
+      const clientState = await client.getState();
+      logDiagnostic("info", "Client state verification before outbound worker creation", {
+        state: clientState,
+        isConnected: clientState === 'CONNECTED',
+        timestamp: new Date().toISOString(),
+      });
+
+      if (clientState !== 'CONNECTED') {
+        logDiagnostic("warn", "Client not in CONNECTED state, waiting additional time", {
+          currentState: clientState,
+          additionalDelay: 2000,
+        });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (error) {
+      logDiagnostic("warn", "Could not verify client state, proceeding with worker creation", {
+        error: error.message,
+      });
+    }
+
+    // Add outbound worker after client is ready and stabilized
+    logDiagnostic("info", "Creating outbound worker for message processing", {
+      queueName: OUTBOUND_QUEUE_NAME,
+      concurrency: 5,
+      timestamp: new Date().toISOString(),
+    });
+
     outboundWorker = new Worker(
       OUTBOUND_QUEUE_NAME,
       async (job) => {
@@ -545,6 +582,10 @@ async function startWhatsAppWorker() {
       {
         connection: outboundRedisConnection,
         concurrency: 5,
+        settings: {
+          stalledInterval: 30000, // 30 seconds
+          maxStalledCount: 1,
+        },
       }
     );
 
@@ -557,6 +598,16 @@ async function startWhatsAppWorker() {
 
     outboundWorker.on("failed", (job, err) => {
       console.error(`[WhatsApp Gateway] Outbound job ${job.id} failed:`, err);
+    });
+
+    outboundWorker.on("stalled", (jobId) => {
+      console.warn(`[WhatsApp Gateway] Outbound job ${jobId} stalled`);
+    });
+
+    logDiagnostic("info", "Outbound worker created and ready for processing", {
+      workerName: outboundWorker.name,
+      queueName: OUTBOUND_QUEUE_NAME,
+      timestamp: new Date().toISOString(),
     });
   });
 
