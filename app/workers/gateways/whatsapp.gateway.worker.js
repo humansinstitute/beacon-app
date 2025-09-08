@@ -16,6 +16,8 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
+import config from "../../config/index.js";
+
 // WhatsApp Gateway Worker starting
 const workerStartTime = Date.now();
 logDiagnostic("info", "WhatsApp Gateway Worker starting...", {
@@ -78,7 +80,7 @@ import { SessionBackupManager } from "../../utils/sessionBackup.js";
 export { transformAndQueueMessage, processOutboundMessage };
 
 const OUTBOUND_QUEUE_NAME = "bm_out";
-const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
+const REDIS_URL = config.redis.url;
 
 // Initialize lock manager
 const lockManager = new LockFileManager();
@@ -88,7 +90,7 @@ const lockManager = new LockFileManager();
 let isMainModule = false;
 
 // Check if we're in a test environment first
-if (process.env.JEST_WORKER_ID || process.env.NODE_ENV === "test") {
+if (process.env.JEST_WORKER_ID || config.app.nodeEnv === "test") {
   isMainModule = false;
 } else {
   // For PM2 and direct execution, always initialize unless explicitly in test mode
@@ -126,23 +128,23 @@ async function initializeWorker() {
       strategy: configuredStrategy,
       gitBranch: gitInfo.branch,
       environment: {
-        sharedSession: process.env.WA_SHARED_SESSION,
-        branchSessions: process.env.WA_BRANCH_SESSIONS,
-        branchDetection: process.env.WA_BRANCH_DETECTION,
-        patternStrategy: process.env.WA_BRANCH_PATTERN_STRATEGY,
-        teamCollaboration: process.env.WA_TEAM_COLLABORATION,
+        sharedSession: config.whatsapp.sharedSession,
+        branchSessions: config.whatsapp.branchSessions,
+        branchDetection: config.whatsapp.branchDetection,
+        patternStrategy: config.whatsapp.patternStrategy,
+        teamCollaboration: config.whatsapp.teamCollaboration,
       },
     });
 
     // Use enhanced instance management with strategy support
     instanceManagement = await initializeInstanceManagement({
-      useSharedSession: process.env.WA_SHARED_SESSION !== "false", // Default to true
+      useSharedSession: config.whatsapp.sharedSession !== false, // Default to true
       consolidateSessions: true,
       useStrategyManager: true, // Enable strategy manager
       strategyConfig: {
-        branchDetection: process.env.WA_BRANCH_DETECTION !== "false",
-        autoMigrate: process.env.WA_AUTO_MIGRATE_SESSION !== "false",
-        migrationBackup: process.env.WA_MIGRATION_BACKUP !== "false",
+        branchDetection: config.whatsapp.branchDetection !== false,
+        autoMigrate: config.whatsapp.autoMigrateSession !== false,
+        migrationBackup: config.whatsapp.migrationBackup !== false,
       },
     });
 
@@ -293,7 +295,7 @@ async function startWhatsAppWorker() {
     );
 
     try {
-      // Perform automatic recovery
+      // Perform automatic recovery with guardrails applied in SessionRecoveryManager
       recoveryResult = await performAutomaticRecovery(sessionPath, {
         validateAfterRecovery: true,
         autoBackupBeforeRecovery: true,
@@ -346,7 +348,10 @@ async function startWhatsAppWorker() {
         "Continuing with client initialization despite recovery failure"
       );
     }
-  } else if (!sessionValidation.details.sessionExists) {
+  } else if (
+    !sessionValidation.details.sessionExists ||
+    sessionValidation.canProceed
+  ) {
     logDiagnostic(
       "info",
       "No existing session found - new session will be created"
@@ -354,6 +359,10 @@ async function startWhatsAppWorker() {
   } else {
     logDiagnostic("info", "Session validation passed - using existing session");
   }
+
+  // Determine QR gating flags
+  const requireManualQr =
+    String(process.env.WA_REQUIRE_MANUAL_QR || "true").toLowerCase() === "true";
 
   const client = new Client({
     authStrategy: new LocalAuth({
@@ -365,37 +374,56 @@ async function startWhatsAppWorker() {
     },
   });
 
-  // Display QR code in terminal when WhatsApp Web requests authentication.
+  // Display QR code only when allowed by policy:
+  // - If requireManualQr=false, always show
+  // - If requireManualQr=true, only show when no prior session exists or validation cannot proceed
   client.on("qr", (qrCode) => {
-    logDiagnostic("info", "QR code generated for authentication", {
-      instanceId,
-      sessionPath,
-      timestamp: new Date().toISOString(),
-    });
+    const currentValidation = validateSessionData(sessionPath);
+    const noPriorSession = !currentValidation.details.sessionExists;
+    const cannotProceed =
+      !currentValidation.canProceed && !currentValidation.isValid;
 
-    qrcode.generate(qrCode, { small: true });
+    if (!requireManualQr || noPriorSession || cannotProceed) {
+      logDiagnostic("info", "QR code generated for authentication", {
+        instanceId,
+        sessionPath,
+        timestamp: new Date().toISOString(),
+      });
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
+      qrcode.generate(qrCode, { small: true });
 
-    if (fs.existsSync(qrFilename)) {
-      fs.unlinkSync(qrFilename);
-      logDiagnostic("info", "Deleted existing QR code image", { qrFilename });
-    }
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const qrFilename = path.join(__dirname, `whatsapp_qr.png`);
 
-    qr.toFile(qrFilename, qrCode, (err) => {
-      if (err) {
-        logDiagnostic("error", "Failed to save QR code image", {
-          error: err.message,
-          qrFilename,
-        });
-      } else {
-        logDiagnostic("info", "QR code image saved successfully", {
-          qrFilename,
-        });
+      if (fs.existsSync(qrFilename)) {
+        fs.unlinkSync(qrFilename);
+        logDiagnostic("info", "Deleted existing QR code image", { qrFilename });
       }
-    });
+
+      qr.toFile(qrFilename, qrCode, (err) => {
+        if (err) {
+          logDiagnostic("error", "Failed to save QR code image", {
+            error: err.message,
+            qrFilename,
+          });
+        } else {
+          logDiagnostic("info", "QR code image saved successfully", {
+            qrFilename,
+          });
+        }
+      });
+    } else {
+      logDiagnostic(
+        "warn",
+        "QR generation suppressed by policy (requireManualQr=true and reusable session detected)",
+        {
+          instanceId,
+          sessionPath,
+          timestamp: new Date().toISOString(),
+        }
+      );
+    }
   });
 
   client.on("auth_failure", (msg) => {
@@ -584,7 +612,7 @@ async function startWhatsAppWorker() {
       logDiagnostic("info", "Redis connection closed");
 
       // Cleanup old sessions if strategy manager is available
-      if (strategyManager && process.env.WA_CLEANUP_ON_EXIT === "true") {
+      if (strategyManager && config.whatsapp.cleanupOnExit === true) {
         try {
           const cleanupResult = await strategyManager.cleanupOldSessions({
             keepCurrent: true,

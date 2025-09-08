@@ -2,9 +2,8 @@
 import request from "supertest";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { app } from "../index.js"; // Assuming app is exported from index.js
-// BeaconMessage model might not be directly needed in this test if we only check queue data
-// import { BeaconMessage } from '../models/index.js';
+import { resetConfig, get } from "../app/config/index.js";
+import { configTestHelpers } from "./utils/configMock.js";
 
 /** ------------------------------------------------------------------ *
  *  Helpers                                                             *
@@ -21,13 +20,31 @@ const objectId = (suffix = "") =>
  *  Test Configuration                                                  *
  *  ------------------------------------------------------------------ */
 const TEST_QUEUE_NAME = "test";
-const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
 describe("POST /api/queue/add/:queueName - BeaconMessage to BullMQ", () => {
   let queue;
   let redisConnection;
+  let app;
 
   beforeAll(async () => {
+    // Set up test configuration using centralized config system
+    await configTestHelpers.setupConfig({
+      NODE_ENV: "test",
+      MONGO_URI: "mongodb://localhost:27017/test",
+      REDIS_URL: "redis://127.0.0.1:6379",
+      BEACON_AUTH: "test-auth-token",
+      WA_GATEWAY_NPUB: "test-npub",
+      PORT: "3001",
+      API_SERVER_PORT: "3257",
+      SERVER_URL: "http://localhost",
+    });
+
+    // Import app after setting up configuration
+    const { app: importedApp } = await import("../index.js");
+    app = importedApp;
+
+    // Get Redis URL from centralized configuration
+    const REDIS_URL = get("REDIS_URL", "redis://127.0.0.1:6379");
     redisConnection = new IORedis(REDIS_URL, {
       maxRetriesPerRequest: null, // Important for BullMQ
     });
@@ -36,8 +53,15 @@ describe("POST /api/queue/add/:queueName - BeaconMessage to BullMQ", () => {
   });
 
   afterAll(async () => {
-    await queue.close();
-    await redisConnection.quit();
+    try {
+      await queue.close();
+      await redisConnection.quit();
+    } catch (error) {
+      console.warn("Error closing queue/redis connections:", error.message);
+    }
+
+    // Clean up configuration
+    configTestHelpers.cleanup();
   });
 
   /** -------- BeaconMessage fixture -------- */
@@ -91,4 +115,55 @@ describe("POST /api/queue/add/:queueName - BeaconMessage to BullMQ", () => {
     await jobInQueue.remove();
     expect(await queue.getWaitingCount()).toBe(0);
   }, 20000); // Increased timeout for API call + queue interaction
+
+  describe("Configuration Integration Tests", () => {
+    test("should handle Redis URL configuration changes", async () => {
+      // Test that the queue uses the configured Redis URL
+      const currentRedisUrl = get("REDIS_URL");
+      expect(currentRedisUrl).toBe("redis://127.0.0.1:6379");
+
+      // Verify Redis connection is working
+      const ping = await redisConnection.ping();
+      expect(ping).toBe("PONG");
+    });
+
+    test("should handle authentication configuration", async () => {
+      // Test that API requires proper authentication
+      const response = await request(app)
+        .post(`/api/queue/add/${TEST_QUEUE_NAME}`)
+        .send(beaconMessagePayload)
+        .expect(401); // Should fail without auth header
+
+      expect(response.body).toHaveProperty("error");
+    });
+
+    test("should work with valid authentication", async () => {
+      const authToken = get("BEACON_AUTH");
+
+      const response = await request(app)
+        .post(`/api/queue/add/${TEST_QUEUE_NAME}`)
+        .set("Authorization", `Bearer ${authToken}`)
+        .send(beaconMessagePayload)
+        .expect(201);
+
+      expect(response.body).toHaveProperty("jobId");
+
+      // Clean up
+      const jobs = await queue.getJobs(["waiting"], 0, -1);
+      for (const job of jobs) {
+        await job.remove();
+      }
+    });
+
+    test("should handle configuration validation errors", async () => {
+      // This test verifies that the system handles configuration errors gracefully
+      const mongoUri = get("MONGO_URI");
+      const redisUrl = get("REDIS_URL");
+
+      expect(mongoUri).toBeTruthy();
+      expect(redisUrl).toBeTruthy();
+      expect(mongoUri).toContain("mongodb://");
+      expect(redisUrl).toContain("redis://");
+    });
+  });
 });

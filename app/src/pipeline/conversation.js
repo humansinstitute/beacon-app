@@ -44,7 +44,27 @@ export async function processConversationPipeline(jobData) {
   };
 
   const user = jobData.beaconMessage.user;
+
+  // DEBUG: Add comprehensive logging for user object validation
+  console.log("[Pipeline] DEBUG - User object validation:", {
+    hasJobData: !!jobData,
+    hasBeaconMessage: !!jobData?.beaconMessage,
+    hasUser: !!user,
+    userKeys: user ? Object.keys(user) : null,
+    userId: user?._id,
+    userNpub: user?.npub,
+    userName: user?.name,
+    messageOrigin: jobData?.beaconMessage?.origin,
+  });
+
   if (!user) {
+    console.error(
+      "[Pipeline] ERROR - User object is missing from jobData.beaconMessage.user"
+    );
+    console.error("[Pipeline] ERROR - This typically happens when:");
+    console.error("  1. User lookup failed in the worker");
+    console.error("  2. Message is not from WhatsApp channel");
+    console.error("  3. User is not registered in the system");
     throw new Error("User object is required for pipeline processing");
   }
 

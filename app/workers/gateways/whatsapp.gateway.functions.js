@@ -4,6 +4,7 @@
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { validateBeaconAuth } from "../../utils/envValidation.js";
+import config from "../../config/index.js";
 
 // Define the function to transform and queue the message
 export const transformAndQueueMessage = async (message) => {
@@ -35,21 +36,21 @@ export const transformAndQueueMessage = async (message) => {
           gatewayUserID: message.from,
           gatewayMessageID: message.id.id,
           gatewayReplyTo: null, // As per requirement
-          gatewayNpub: process.env.WA_GATEWAY_NPUB,
+          gatewayNpub: config.whatsapp.gatewayNpub,
         },
       },
     };
 
     // Construct base URL for API calls
     const baseURL =
-      process.env.API_BASE_URL ||
-      `${process.env.SERVER_URL}:${process.env.API_SERVER_PORT}`;
+      config.app.apiBaseUrl ||
+      `${config.app.serverUrl}:${config.app.apiServerPort}`;
 
     console.log(`Sending message to beacon queue bm_in: ${beaconMessageId}`);
     await axios.post(`${baseURL}/api/queue/add/bm_in`, beaconMessagePayload, {
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.BEACON_AUTH}`,
+        Authorization: `Bearer ${config.auth.beaconAuth}`,
       },
     });
     console.log(

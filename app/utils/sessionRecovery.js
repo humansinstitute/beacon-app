@@ -335,6 +335,19 @@ export class SessionRecoveryManager {
    * @private
    */
   _determineRecoveryLevel(severity) {
+    // Respect guardrail: avoid destructive resets by default
+    const allowCompleteReset =
+      String(process.env.WA_ALLOW_COMPLETE_RESET || "").toLowerCase() ===
+      "true";
+    const profileMode = (
+      process.env.WA_SESSION_PROFILE_MODE || "wwebjs"
+    ).trim();
+    const isSharedSession =
+      String(process.env.WA_SHARED_SESSION || "true").toLowerCase() === "true";
+    const isProduction =
+      (process.env.NODE_ENV || process.env.nodeEnv || "development") ===
+      "production";
+
     switch (severity) {
       case CORRUPTION_SEVERITY.MINOR:
         return RECOVERY_LEVELS.LEVEL_1;
@@ -343,7 +356,14 @@ export class SessionRecoveryManager {
       case CORRUPTION_SEVERITY.MAJOR:
         return RECOVERY_LEVELS.LEVEL_3;
       case CORRUPTION_SEVERITY.CRITICAL:
-        return RECOVERY_LEVELS.LEVEL_4;
+        // Only allow Level 4 if explicitly permitted; otherwise, fall back to Level 3 at most
+        if (
+          allowCompleteReset &&
+          !(isSharedSession && isProduction && profileMode !== "chromeProfile")
+        ) {
+          return RECOVERY_LEVELS.LEVEL_4;
+        }
+        return RECOVERY_LEVELS.LEVEL_3;
       default:
         return RECOVERY_LEVELS.LEVEL_1;
     }
@@ -370,8 +390,26 @@ export class SessionRecoveryManager {
           return await this._executeLevelTwoRecovery();
         case RECOVERY_LEVELS.LEVEL_3:
           return await this._executeLevelThreeRecovery();
-        case RECOVERY_LEVELS.LEVEL_4:
+        case RECOVERY_LEVELS.LEVEL_4: {
+          const allowCompleteReset =
+            String(process.env.WA_ALLOW_COMPLETE_RESET || "").toLowerCase() ===
+            "true";
+          const isSharedSession =
+            String(process.env.WA_SHARED_SESSION || "true").toLowerCase() ===
+            "true";
+          const isProduction =
+            (process.env.NODE_ENV || process.env.nodeEnv || "development") ===
+            "production";
+
+          if (!allowCompleteReset || (isSharedSession && isProduction)) {
+            logDiagnostic(
+              "warn",
+              "Level 4 reset blocked by guardrails (shared/prod or WA_ALLOW_COMPLETE_RESET=false). Falling back to Level 3."
+            );
+            return await this._executeLevelThreeRecovery();
+          }
           return await this._executeLevelFourRecovery();
+        }
         default:
           throw new Error(`Unknown recovery level: ${recoveryLevel}`);
       }
@@ -690,8 +728,14 @@ export class SessionRecoveryManager {
     const validation = validateSessionData(this.sessionPath);
 
     // Add recovery-specific validation logic
+    // canProceed if:
+    // - valid, or
+    // - session does not exist (fresh), or
+    // - in wwebjs mode with minimal artifacts present (computed by validator)
     validation.canProceed =
-      validation.isValid || !validation.details.sessionExists;
+      validation.isValid ||
+      !validation.details.sessionExists ||
+      validation.canProceed === true;
 
     return validation;
   }
@@ -746,7 +790,7 @@ export async function performAutomaticRecovery(sessionPath, options = {}) {
 export async function assessRecoveryNeeds(sessionPath) {
   const validation = validateSessionData(sessionPath);
 
-  if (validation.isValid) {
+  if (validation.isValid || validation.canProceed) {
     return {
       recoveryNeeded: false,
       recommendation: "none",
@@ -757,11 +801,13 @@ export async function assessRecoveryNeeds(sessionPath) {
   const recoveryManager = new SessionRecoveryManager({ sessionPath });
   const assessment = await recoveryManager._assessCorruption(validation);
 
+  const recommended = assessment.detected
+    ? recoveryManager._determineRecoveryLevel(assessment.severity)
+    : "none";
+
   return {
     recoveryNeeded: assessment.detected,
-    recommendation: assessment.detected
-      ? recoveryManager._determineRecoveryLevel(assessment.severity)
-      : "none",
+    recommendation: recommended,
     severity: assessment.severity,
     indicators: assessment.indicators,
     patterns: assessment.patterns,

@@ -1,12 +1,18 @@
 import { requireAuth } from "../app/api/middlewares/auth.middleware.js";
+import { resetConfig } from "../app/config/index.js";
+import { configTestHelpers } from "./utils/configMock.js";
 
 describe("Auth Middleware", () => {
   let req, res, next;
-  let originalBeaconAuth;
 
-  beforeEach(() => {
-    // Store original environment variable
-    originalBeaconAuth = process.env.BEACON_AUTH;
+  beforeEach(async () => {
+    // Set up configuration for auth middleware testing
+    await configTestHelpers.setupConfig({
+      BEACON_AUTH: "test-secret-token",
+      WA_GATEWAY_NPUB: "test-npub",
+      MONGO_URI: "mongodb://localhost:27017/test",
+      REDIS_URL: "redis://localhost:6379",
+    });
 
     // Mock request, response, and next function
     req = {
@@ -23,20 +29,17 @@ describe("Auth Middleware", () => {
   });
 
   afterEach(() => {
-    // Restore original environment variable
-    if (originalBeaconAuth !== undefined) {
-      process.env.BEACON_AUTH = originalBeaconAuth;
-    } else {
-      delete process.env.BEACON_AUTH;
-    }
+    // Clean up configuration mocks
+    configTestHelpers.cleanup();
 
     // Restore console.error
     console.error.mockRestore();
   });
 
   describe("Environment Variable Validation", () => {
-    test("should return 500 when BEACON_AUTH is not set", () => {
-      delete process.env.BEACON_AUTH;
+    test("should return 500 when BEACON_AUTH is not set", async () => {
+      // Remove BEACON_AUTH from configuration
+      configTestHelpers.removeConfig(["BEACON_AUTH"]);
       req.headers.authorization = "Bearer valid-token";
 
       requireAuth(req, res, next);
@@ -52,7 +55,8 @@ describe("Auth Middleware", () => {
     });
 
     test("should return 500 when BEACON_AUTH is empty string", () => {
-      process.env.BEACON_AUTH = "";
+      // Set BEACON_AUTH to empty string
+      configTestHelpers.updateConfig({ BEACON_AUTH: "" });
       req.headers.authorization = "Bearer valid-token";
 
       requireAuth(req, res, next);
@@ -66,10 +70,6 @@ describe("Auth Middleware", () => {
   });
 
   describe("Authorization Header Validation", () => {
-    beforeEach(() => {
-      process.env.BEACON_AUTH = "test-secret-token";
-    });
-
     test("should return 401 when authorization header is missing", () => {
       requireAuth(req, res, next);
 
@@ -94,10 +94,6 @@ describe("Auth Middleware", () => {
   });
 
   describe("Token Validation", () => {
-    beforeEach(() => {
-      process.env.BEACON_AUTH = "test-secret-token";
-    });
-
     test("should return 403 when Bearer token is invalid", () => {
       req.headers.authorization = "Bearer invalid-token";
 
@@ -170,10 +166,6 @@ describe("Auth Middleware", () => {
   });
 
   describe("Edge Cases", () => {
-    beforeEach(() => {
-      process.env.BEACON_AUTH = "test-secret-token";
-    });
-
     test("should handle authorization header with only 'Bearer'", () => {
       req.headers.authorization = "Bearer";
 
@@ -196,6 +188,32 @@ describe("Auth Middleware", () => {
         error: "Invalid authorization token",
       });
       expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Configuration Scenarios", () => {
+    test("should work with different BEACON_AUTH values", async () => {
+      const testToken = "custom-auth-token-12345";
+      configTestHelpers.updateConfig({ BEACON_AUTH: testToken });
+
+      req.headers.authorization = `Bearer ${testToken}`;
+      requireAuth(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    test("should handle configuration validation errors gracefully", async () => {
+      // Apply invalid configuration scenario
+      configTestHelpers.applyScenario("invalid-config");
+
+      req.headers.authorization = "Bearer any-token";
+      requireAuth(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Server configuration error",
+      });
     });
   });
 });

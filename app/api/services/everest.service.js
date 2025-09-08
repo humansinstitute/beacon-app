@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { createAdjustmentAndUpdateBalance } from "./adjustment.service.js";
+import config from "../../config/index.js";
 
 /**
  * Calls the Everest agent API with the provided agent object and user context.
@@ -8,8 +9,30 @@ import { createAdjustmentAndUpdateBalance } from "./adjustment.service.js";
  * @returns {Promise<Object>} - The response from the Everest API.
  */
 async function callEverest(agent, userContext) {
-  const baseUrl = process.env.EVEREST_API_BASE;
-  const apiKey = process.env.EVEREST_API;
+  const baseUrl = config.services.everest.apiBase;
+  const apiKey = config.services.everest.api;
+
+  // DEBUG: Add diagnostic logging for configuration values
+  console.log("[Everest Service] DEBUG - Configuration check:", {
+    hasBaseUrl: !!baseUrl,
+    baseUrlValue: baseUrl,
+    hasApiKey: !!apiKey,
+    configServicesKeys: Object.keys(config.services || {}),
+    everestConfigKeys: Object.keys(config.services?.everest || {}),
+  });
+
+  if (!baseUrl) {
+    throw new Error(
+      "Everest API base URL is not configured. Please set EVEREST_API_BASE environment variable."
+    );
+  }
+
+  if (!apiKey) {
+    throw new Error(
+      "Everest API key is not configured. Please set EVEREST_API environment variable."
+    );
+  }
+
   const url = `${baseUrl.replace(/\/$/, "")}/v2/agent`;
 
   // DEBUG: Log agent data before JSON serialization to catch escaping issues

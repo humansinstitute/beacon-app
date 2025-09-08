@@ -18,6 +18,10 @@ module.exports = {
       env_file: ".env",
       env: {
         NODE_ENV: "production",
+        BEACON_AUTH: "test-beacon-auth-token-12345",
+        MONGO_URI: "mongodb://localhost:27017/beacon",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        WA_GATEWAY_NPUB: "test-npub",
       },
       env_development: {
         NODE_ENV: "development",
@@ -42,6 +46,10 @@ module.exports = {
       env_file: ".env",
       env: {
         NODE_ENV: "production",
+        BEACON_AUTH: "test-beacon-auth-token-12345",
+        MONGO_URI: "mongodb://localhost:27017/beacon",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        WA_GATEWAY_NPUB: "test-npub",
       },
       env_development: {
         NODE_ENV: "development",
@@ -84,6 +92,10 @@ module.exports = {
         PM2_APP_NAME: "beacon-gate-wa",
         PM2_INSTANCE_ID: "0",
         WA_SHARED_SESSION: "true",
+        BEACON_AUTH: "test-beacon-auth-token-12345",
+        MONGO_URI: "mongodb://localhost:27017/beacon",
+        REDIS_URL: "redis://127.0.0.1:6379",
+        WA_GATEWAY_NPUB: "test-npub",
       },
       env_development: {
         NODE_ENV: "development",

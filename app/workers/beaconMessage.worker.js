@@ -7,19 +7,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { connectDB } from "../../libs/db.js";
+import config from "../config/index.js";
 
 // Debug: Log the MongoDB URI being used
-console.log("[Worker] NODE_ENV:", process.env.NODE_ENV);
-console.log("[Worker] MONGO_URI:", process.env.MONGO_URI ? "Set" : "Not set");
-if (process.env.MONGO_URI) {
+console.log("[Worker] NODE_ENV:", config.app.nodeEnv);
+console.log(
+  "[Worker] MONGO_URI:",
+  config.database.mongoUri ? "Set" : "Not set"
+);
+if (config.database.mongoUri) {
   console.log(
     "[Worker] MONGO_URI value:",
-    process.env.MONGO_URI.replace(/\/\/[^:]+:[^@]+@/, "//***:***@")
+    config.database.mongoUri.replace(/\/\/[^:]+:[^@]+@/, "//***:***@")
   );
 }
 
 const QUEUE_NAME = "bm_in";
-const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
+const REDIS_URL = config.redis.url;
 
 const redisConnection = new IORedis(REDIS_URL, {
   maxRetriesPerRequest: null, // Important for BullMQ worker as well
@@ -56,12 +60,28 @@ async function initializeWorker() {
 
         // Check if the message is from WhatsApp channel and lookup user if so
         let alias = { type: "", ref: "" };
+
+        // DEBUG: Add comprehensive logging for user lookup process
+        console.log("[Worker] DEBUG - User lookup process:", {
+          hasBeaconMessage: !!job.data.beaconMessage,
+          hasOrigin: !!job.data.beaconMessage?.origin,
+          channel: job.data.beaconMessage?.origin?.channel,
+          gatewayUserID: job.data.beaconMessage?.origin?.gatewayUserID,
+          existingUser: !!job.data.beaconMessage?.user,
+        });
+
         if (job.data.beaconMessage.origin.channel === "beacon.whatsapp") {
           alias.type = "wa";
           alias.ref = job.data.beaconMessage.origin.gatewayUserID;
           console.log(`[Worker] Looking up user for alias:`, alias);
           try {
             const user = await lookupUserByAlias(alias);
+            console.log("[Worker] DEBUG - User lookup result:", {
+              foundUser: !!user,
+              userId: user?._id,
+              userNpub: user?.npub,
+              userName: user?.name,
+            });
             if (user) {
               job.data.beaconMessage.user = user;
               console.log(
@@ -70,13 +90,26 @@ async function initializeWorker() {
               );
             } else {
               console.log(`[Worker] No user found for alias:`, alias);
+              console.warn(
+                "[Worker] WARNING - Processing will continue without user object, which may cause pipeline errors"
+              );
             }
           } catch (error) {
             console.error(
               `[Worker] Failed to lookup user for alias ${alias.type}:${alias.ref}:`,
               error
             );
+            console.warn(
+              "[Worker] WARNING - User lookup failed, processing will continue without user object"
+            );
           }
+        } else {
+          console.log(
+            "[Worker] DEBUG - Not a WhatsApp message, skipping user lookup"
+          );
+          console.warn(
+            "[Worker] WARNING - Non-WhatsApp messages may not have user objects, which could cause pipeline errors"
+          );
         }
 
         // Analyze conversation context

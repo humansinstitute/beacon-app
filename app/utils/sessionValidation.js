@@ -8,25 +8,65 @@ import path from "path";
 
 /**
  * Required files and directories for a valid WhatsApp Web.js session
+ * Now supports profile modes via env WA_SESSION_PROFILE_MODE:
+ * - wwebjs: minimal LocalAuth artifacts
+ * - chromeProfile: full Chromium profile structure (legacy strict mode)
  */
-const REQUIRED_SESSION_STRUCTURE = {
-  directories: [
-    "Default",
-    "Default/Local Storage",
-    "Default/Session Storage",
-    "Default/IndexedDB",
-  ],
-  files: ["Default/Preferences", "Default/Local State"],
-  optionalFiles: ["Default/Cookies", "Default/Web Data", "Default/History"],
-};
+const PROFILE_MODE = (process.env.WA_SESSION_PROFILE_MODE || "wwebjs").trim();
+
+const REQUIRED_SESSION_STRUCTURE =
+  PROFILE_MODE === "chromeProfile"
+    ? {
+        directories: [
+          "Default",
+          "Default/Local Storage",
+          "Default/Session Storage",
+          "Default/IndexedDB",
+        ],
+        files: ["Default/Preferences", "Default/Local State"],
+        optionalFiles: [
+          "Default/Cookies",
+          "Default/Web Data",
+          "Default/History",
+        ],
+      }
+    : {
+        // wwebjs minimal expectations: we only require the root session folder
+        // and at least one of Local Storage LevelDB or IndexedDB to exist.
+        directories: [
+          // Keep as soft checks under warnings for wwebjs; do not fail validity
+        ],
+        files: [
+          // No hard-required files for wwebjs LocalAuth
+        ],
+        optionalFiles: [
+          "Default",
+          "Default/Local Storage",
+          "Default/Session Storage",
+          "Default/IndexedDB",
+          "Default/Preferences",
+          "Default/Local State",
+          "Default/Cookies",
+          "Default/Web Data",
+          "Default/History",
+        ],
+      };
 
 /**
- * Critical session files that indicate authentication state
+ * Critical session paths that indicate authentication state
+ * In wwebjs mode, treat presence of either Local Storage leveldb or IndexedDB as sufficient.
  */
-const CRITICAL_AUTH_FILES = [
-  "Default/Local Storage/leveldb",
-  "Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb",
-];
+const CRITICAL_AUTH_FILES =
+  PROFILE_MODE === "chromeProfile"
+    ? [
+        "Default/Local Storage/leveldb",
+        "Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb",
+      ]
+    : [
+        // For wwebjs, these are "auth indicators" rather than strict requirements
+        "Default/Local Storage/leveldb",
+        "Default/IndexedDB",
+      ];
 
 /**
  * Validates the integrity of WhatsApp Web.js session data
@@ -62,7 +102,10 @@ export const validateSessionData = (sessionPath) => {
       },
       sessionSize: 0,
       lastModified: null,
+      profileMode: PROFILE_MODE,
+      fileCount: 0,
     },
+    canProceed: false,
   };
 
   try {
@@ -86,7 +129,12 @@ export const validateSessionData = (sessionPath) => {
         result.details.requiredDirectories.present.push(dir);
       } else {
         result.details.requiredDirectories.missing.push(dir);
-        result.issues.push(`Missing required directory: ${dir}`);
+        if (PROFILE_MODE === "chromeProfile") {
+          result.issues.push(`Missing required directory: ${dir}`);
+        } else {
+          // In wwebjs mode, these are soft requirements
+          result.warnings.push(`Optional directory missing: ${dir}`);
+        }
       }
     }
 
@@ -97,7 +145,11 @@ export const validateSessionData = (sessionPath) => {
         result.details.requiredFiles.present.push(file);
       } else {
         result.details.requiredFiles.missing.push(file);
-        result.issues.push(`Missing required file: ${file}`);
+        if (PROFILE_MODE === "chromeProfile") {
+          result.issues.push(`Missing required file: ${file}`);
+        } else {
+          result.warnings.push(`Optional file missing (wwebjs): ${file}`);
+        }
       }
     }
 
@@ -112,27 +164,79 @@ export const validateSessionData = (sessionPath) => {
       }
     }
 
-    // Validate critical authentication files
+    // Validate critical authentication files/paths
     for (const authFile of CRITICAL_AUTH_FILES) {
       const authPath = path.join(sessionPath, authFile);
       if (fs.existsSync(authPath)) {
         result.details.authenticationFiles.present.push(authFile);
       } else {
         result.details.authenticationFiles.missing.push(authFile);
-        result.issues.push(`Missing critical authentication file: ${authFile}`);
+        if (PROFILE_MODE === "chromeProfile") {
+          result.issues.push(
+            `Missing critical authentication file: ${authFile}`
+          );
+        } else {
+          // In wwebjs mode, we'll consider "presence of any" below
+          result.warnings.push(
+            `Auth indicator missing (wwebjs soft): ${authFile}`
+          );
+        }
+      }
+    }
+
+    // In wwebjs mode, consider session valid if:
+    // - session dir exists, and
+    // - at least one auth indicator path exists (Local Storage leveldb OR IndexedDB), and
+    // - size threshold is relaxed (allow small size if auth indicator exists)
+    if (PROFILE_MODE !== "chromeProfile") {
+      const anyAuthPresent =
+        result.details.authenticationFiles.present.length > 0;
+      if (anyAuthPresent) {
+        // Clear any previously set hard issues related to missing required structures in wwebjs mode
+        result.issues = result.issues.filter(
+          (msg) =>
+            !msg.startsWith("Missing required directory") &&
+            !msg.startsWith("Missing required file")
+        );
       }
     }
 
     // Calculate session directory size
     result.details.sessionSize = calculateDirectorySize(sessionPath);
 
-    // Validate session size (should be > 1MB for a valid session)
+    // Calculate total file count (recursive) to detect effectively empty session dirs
+    const countFilesRecursive = (dir) => {
+      let total = 0;
+      try {
+        const entries = fs.readdirSync(dir);
+        for (const entry of entries) {
+          const p = path.join(dir, entry);
+          const st = fs.statSync(p);
+          if (st.isDirectory()) {
+            total += countFilesRecursive(p);
+          } else {
+            total += 1;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return total;
+    };
+    result.details.fileCount = countFilesRecursive(sessionPath);
+
+    // Validate session size
+    // In chromeProfile mode, keep 1MB heuristic; in wwebjs mode, downgrade to warning only.
     if (result.details.sessionSize < 1024 * 1024) {
-      result.warnings.push(
-        `Session directory size is unusually small: ${formatBytes(
-          result.details.sessionSize
-        )}`
-      );
+      const msg = `Session directory size is unusually small: ${formatBytes(
+        result.details.sessionSize
+      )}`;
+      if (PROFILE_MODE === "chromeProfile") {
+        result.warnings.push(msg);
+      } else {
+        // still a warning, but explicitly note wwebjs tolerance
+        result.warnings.push(`${msg} (wwebjs tolerant)`);
+      }
     }
 
     // Check for corruption indicators
@@ -140,11 +244,28 @@ export const validateSessionData = (sessionPath) => {
     result.issues.push(...corruptionIssues);
 
     // Determine overall validity
-    result.isValid =
-      result.issues.length === 0 &&
-      result.details.requiredDirectories.missing.length === 0 &&
-      result.details.requiredFiles.missing.length === 0 &&
-      result.details.authenticationFiles.missing.length === 0;
+    if (PROFILE_MODE === "chromeProfile") {
+      result.isValid =
+        result.issues.length === 0 &&
+        result.details.requiredDirectories.missing.length === 0 &&
+        result.details.requiredFiles.missing.length === 0 &&
+        result.details.authenticationFiles.missing.length === 0;
+    } else {
+      // wwebjs: valid if session exists and any auth indicator exists
+      const anyAuthPresent =
+        result.details.authenticationFiles.present.length > 0;
+      result.isValid = result.details.sessionExists && anyAuthPresent;
+    }
+
+    // Compute canProceed:
+    // - Valid sessions always proceed
+    // - In wwebjs mode, allow proceed if session exists even if minimal, to avoid destructive resets;
+    //   recovery logic can attempt non-destructive repair.
+    result.canProceed =
+      result.isValid ||
+      (!result.isValid &&
+        PROFILE_MODE !== "chromeProfile" &&
+        result.details.sessionExists);
   } catch (error) {
     result.issues.push(`Validation error: ${error.message}`);
   }
