@@ -116,8 +116,9 @@ async function converstationAnalyst(message, context, npub) {
     model: {
       provider: "openai", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick.
       model: "o4-mini", // THIS WORKS FOR QUICK INTENT INFERENCE.
-      //, "meta-llama/llama-4-scout-17b-16e-instruct" // // *** SET THIS FOR AN AGENT "gpt-4o" default model can be overridden at run tiem.
-      // response_format: { type: "json_object" }, // JSON { type: "json_object" } or TEXT { type: "text" } // OPTIONAL
+      // provider: "groq", // *** SET THIS FOR AN AGENT - will tell call which SDK client to pick.
+      // model: "meta-llama/llama-4-scout-17b-16e-instruct",// // *** SET THIS FOR AN AGENT "gpt-4o" default model can be overridden at run tiem.
+      // // response_format: { type: "json_object" }, // JSON { type: "json_object" } or TEXT { type: "text" } // OPTIONAL
       callType: "Converstaion Analysis", // *** SET THIS FOR AN AGENT
       type: "json_object",
       temperature: 1, // *** SET THIS FOR AN AGENT
