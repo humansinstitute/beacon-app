@@ -1,6 +1,7 @@
 // app/utils/userUtils.js
 
 import { validateBeaconAuth } from "./envValidation.js";
+import config from "../config/index.js";
 
 /**
  * Looks up a user by alias type and reference using the API endpoint.
@@ -34,7 +35,7 @@ export async function lookupUserByAlias(alias) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.BEACON_AUTH}`,
+        Authorization: `Bearer ${config.auth.beaconAuth}`,
       },
     });
 

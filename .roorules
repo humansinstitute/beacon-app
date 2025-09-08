@@ -16,6 +16,8 @@ Act:
 - Note all aspects of the system are run from the PM2 ecosystem.config.cjs
 - Please be aware that processes may already be running and need stopping / restarting to test effectively
 - Always resolve failed unit or integration tests before continuing unless you specifically ran the test knowing the tests would fail
+- Always implement using orchestrator
+- Always ensure that any sub taskwork orders via orchestrator include all references and information from PRD, design etc releavnt to the specific task and has clear scope boundaries.
 
 DevOps:
 

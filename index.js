@@ -7,9 +7,10 @@ import queueRoutes from "./app/api/routes/queue.routes.js"; // Import new queue 
 import userRoutes from "./app/api/routes/user.route.js";
 import { connectDB, disconnectDB } from "./libs/db.js"; // Import new DB functions
 import { validateEnvironment } from "./app/utils/envValidation.js"; // Import environment validation
+import config from "./app/config/index.js";
 
 const app = express();
-const port = process.env.API_SERVER_PORT || 3256;
+const port = config.app.apiServerPort;
 
 app.use(express.json());
 
@@ -72,7 +73,7 @@ async function stopServer() {
 // We need a reference to the HTTP server to close it gracefully
 let httpServer;
 
-if (process.env.NODE_ENV !== "test") {
+if (config.app.nodeEnv !== "test") {
   // Start server and store the httpServer instance
   (async () => {
     // Validate environment variables before starting any services

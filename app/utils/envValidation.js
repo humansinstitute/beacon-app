@@ -1,144 +1,150 @@
 /**
  * Environment validation utilities
- * Validates required environment variables for the application
+ * Validates configuration using the centralized configuration system
  */
 
+import {
+  isConfigValid,
+  getConfigErrors,
+  getConfigWarnings,
+} from "../config/index.js";
+
 /**
- * Validates that the BEACON_AUTH environment variable is set and non-empty
+ * Validates that the BEACON_AUTH configuration is properly set
  * @returns {Object} Validation result with success status and error message if applicable
  */
 export const validateBeaconAuth = () => {
-  const beaconAuth = process.env.BEACON_AUTH;
+  try {
+    // The configuration system handles validation internally
+    // We just need to check if the configuration is valid
+    if (!isConfigValid()) {
+      const errors = getConfigErrors();
+      const beaconAuthError = errors.find((error) =>
+        error.includes("BEACON_AUTH")
+      );
 
-  if (
-    beaconAuth === undefined ||
-    beaconAuth === null ||
-    beaconAuth === "undefined" ||
-    beaconAuth === "null"
-  ) {
+      if (beaconAuthError) {
+        return {
+          success: false,
+          error: beaconAuthError,
+        };
+      }
+    }
+
+    return {
+      success: true,
+      message: "BEACON_AUTH configuration is properly set",
+    };
+  } catch (error) {
     return {
       success: false,
-      error: "BEACON_AUTH environment variable is not set",
+      error: `Configuration validation failed: ${error.message}`,
     };
   }
-
-  if (typeof beaconAuth !== "string" || beaconAuth.trim() === "") {
-    return {
-      success: false,
-      error: "BEACON_AUTH environment variable is empty or invalid",
-    };
-  }
-
-  return {
-    success: true,
-    message: "BEACON_AUTH environment variable is properly configured",
-  };
 };
 
 /**
- * Validates NC Tools configuration with defaults
+ * Validates NC Tools configuration
  * @returns {Object} Validation result with success status and any warnings
  */
 export const validateNCToolsConfig = () => {
-  const warnings = [];
-
-  // Set defaults for NC Tools configuration
-  if (!process.env.NCTOOLS_API_URL) {
-    process.env.NCTOOLS_API_URL = "http://localhost:3000";
-    warnings.push(
-      "NCTOOLS_API_URL not set, using default: http://localhost:3000"
+  try {
+    const warnings = getConfigWarnings();
+    const nctoolsWarnings = warnings.filter(
+      (warning) =>
+        warning.includes("NCTOOLS") ||
+        warning.includes("nctools") ||
+        warning.includes("apiUrl") ||
+        warning.includes("timeout")
     );
-  }
 
-  if (!process.env.NCTOOLS_TIMEOUT) {
-    process.env.NCTOOLS_TIMEOUT = "30000";
-    warnings.push("NCTOOLS_TIMEOUT not set, using default: 30000ms");
-  } else {
-    const timeout = parseInt(process.env.NCTOOLS_TIMEOUT);
-    if (isNaN(timeout) || timeout <= 0) {
-      process.env.NCTOOLS_TIMEOUT = "30000";
-      warnings.push("NCTOOLS_TIMEOUT invalid, using default: 30000ms");
-    }
+    return {
+      success: true,
+      message: "NC Tools configuration validated",
+      warnings: nctoolsWarnings.length > 0 ? nctoolsWarnings : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `NC Tools configuration validation failed: ${error.message}`,
+    };
   }
-
-  return {
-    success: true,
-    message: "NC Tools configuration validated",
-    warnings: warnings.length > 0 ? warnings : undefined,
-  };
 };
 
 /**
- * Validates Cashu configuration with defaults
+ * Validates Cashu configuration
  * @returns {Object} Validation result with success status and any warnings
  */
 export const validateCashuConfig = () => {
-  const warnings = [];
-
-  // Set defaults for Cashu configuration
-  if (!process.env.CASHU_DEFAULT_MINT) {
-    process.env.CASHU_DEFAULT_MINT = "https://mint.minibits.cash/Bitcoin";
-    warnings.push(
-      "CASHU_DEFAULT_MINT not set, using default: https://mint.minibits.cash/Bitcoin"
+  try {
+    const warnings = getConfigWarnings();
+    const cashuWarnings = warnings.filter(
+      (warning) =>
+        warning.includes("CASHU") ||
+        warning.includes("cashu") ||
+        warning.includes("defaultMint") ||
+        warning.includes("minAmount") ||
+        warning.includes("maxAmount")
     );
-  }
 
-  if (!process.env.CASHU_MIN_AMOUNT) {
-    process.env.CASHU_MIN_AMOUNT = "1";
-    warnings.push("CASHU_MIN_AMOUNT not set, using default: 1 sat");
-  } else {
-    const minAmount = parseInt(process.env.CASHU_MIN_AMOUNT);
-    if (isNaN(minAmount) || minAmount <= 0) {
-      process.env.CASHU_MIN_AMOUNT = "1";
-      warnings.push("CASHU_MIN_AMOUNT invalid, using default: 1 sat");
-    }
+    return {
+      success: true,
+      message: "Cashu configuration validated",
+      warnings: cashuWarnings.length > 0 ? cashuWarnings : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Cashu configuration validation failed: ${error.message}`,
+    };
   }
-
-  if (!process.env.CASHU_MAX_AMOUNT) {
-    process.env.CASHU_MAX_AMOUNT = "1000000";
-    warnings.push("CASHU_MAX_AMOUNT not set, using default: 1000000 sats");
-  } else {
-    const maxAmount = parseInt(process.env.CASHU_MAX_AMOUNT);
-    if (isNaN(maxAmount) || maxAmount <= 0) {
-      process.env.CASHU_MAX_AMOUNT = "1000000";
-      warnings.push("CASHU_MAX_AMOUNT invalid, using default: 1000000 sats");
-    }
-  }
-
-  return {
-    success: true,
-    message: "Cashu configuration validated",
-    warnings: warnings.length > 0 ? warnings : undefined,
-  };
 };
 
 /**
- * Validates all required environment variables for the application
+ * Validates all required configuration for the application
  * @returns {Object} Validation result with success status and any error messages
  */
 export const validateEnvironment = () => {
-  const validations = [
-    validateBeaconAuth(),
-    validateNCToolsConfig(),
-    validateCashuConfig(),
-  ];
+  try {
+    // Check overall configuration validity
+    if (!isConfigValid()) {
+      const errors = getConfigErrors();
+      return {
+        success: false,
+        errors: errors,
+        warnings: getConfigWarnings(),
+      };
+    }
 
-  const failures = validations.filter((v) => !v.success);
-  const allWarnings = validations
-    .filter((v) => v.warnings)
-    .flatMap((v) => v.warnings);
+    // Run individual validations for detailed reporting
+    const validations = [
+      validateBeaconAuth(),
+      validateNCToolsConfig(),
+      validateCashuConfig(),
+    ];
 
-  if (failures.length > 0) {
+    const failures = validations.filter((v) => !v.success);
+    const allWarnings = validations
+      .filter((v) => v.warnings)
+      .flatMap((v) => v.warnings);
+
+    if (failures.length > 0) {
+      return {
+        success: false,
+        errors: failures.map((f) => f.error),
+        warnings: allWarnings.length > 0 ? allWarnings : undefined,
+      };
+    }
+
     return {
-      success: false,
-      errors: failures.map((f) => f.error),
+      success: true,
+      message: "All configuration is properly set",
       warnings: allWarnings.length > 0 ? allWarnings : undefined,
     };
+  } catch (error) {
+    return {
+      success: false,
+      errors: [`Environment validation failed: ${error.message}`],
+    };
   }
-
-  return {
-    success: true,
-    message: "All environment variables are properly configured",
-    warnings: allWarnings.length > 0 ? allWarnings : undefined,
-  };
 };

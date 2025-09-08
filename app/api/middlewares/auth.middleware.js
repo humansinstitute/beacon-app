@@ -1,11 +1,22 @@
 /**
  * Authorization middleware for API endpoints
- * Validates Bearer token authentication against process.env.BEACON_AUTH
+ * Validates Bearer token authentication against centralized configuration
  */
+
+import config from '../../config/index.js';
 
 export const requireAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const expectedAuth = process.env.BEACON_AUTH;
+  
+  let expectedAuth;
+  try {
+    expectedAuth = config.auth.beaconAuth;
+  } catch (error) {
+    console.error("[Auth Middleware] BEACON_AUTH environment variable not set");
+    return res.status(500).json({
+      error: "Server configuration error",
+    });
+  }
 
   if (!expectedAuth) {
     console.error("[Auth Middleware] BEACON_AUTH environment variable not set");

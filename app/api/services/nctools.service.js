@@ -1,4 +1,5 @@
 import axios from "axios";
+import config from "../../config/index.js";
 
 /**
  * NC Tools Service for Cashu wallet operations integration
@@ -6,10 +7,9 @@ import axios from "axios";
  */
 class NCToolsService {
   constructor() {
-    this.baseURL = process.env.NCTOOLS_API_URL || "http://localhost:3000";
-    this.timeout = parseInt(process.env.NCTOOLS_TIMEOUT) || 30000;
-    this.defaultMint =
-      process.env.CASHU_DEFAULT_MINT;
+    this.baseURL = config.services.nctools.apiUrl;
+    this.timeout = config.services.nctools.timeout;
+    this.defaultMint = config.cashu.defaultMint;
 
     // Configure axios instance
     this.client = axios.create({

@@ -5,8 +5,15 @@ const Database = require("better-sqlite3");
 const { getEventHash, verifySignature } = require("nostr-tools");
 require("dotenv").config();
 
+// Import config using dynamic import since this is CommonJS
+let config;
+(async () => {
+  const configModule = await import("../../config/index.js");
+  config = configModule.default;
+})();
+
 function logDebug(...args) {
-  if (process.env.DEBUG === "true") {
+  if (config?.app?.debug === true) {
     console.log(...args);
   }
 }

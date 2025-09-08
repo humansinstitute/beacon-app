@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import config from "../app/config/index.js";
 
 let mongod; // To store the MongoMemoryServer instance
 let activeConnection = null; // Cache for active connection
@@ -14,7 +15,7 @@ const connectDB = async () => {
   if (mongoose.connection.readyState === 1) {
     // 1 = connected
     activeConnection = mongoose.connection;
-    if (process.env.NODE_ENV !== "test") {
+    if (config.app.nodeEnv !== "test") {
       console.log(`MongoDB already connected: ${mongoose.connection.host}`);
     }
     return activeConnection;
@@ -22,17 +23,17 @@ const connectDB = async () => {
 
   try {
     let mongoUri;
-    if (process.env.NODE_ENV === "test") {
+    if (config.app.nodeEnv === "test") {
       mongod = await MongoMemoryServer.create();
       mongoUri = mongod.getUri();
       console.log("MongoDB In-Memory Server started for testing...");
     } else {
-      mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/thebeacon";
+      mongoUri = config.database.mongoUri;
     }
 
     const conn = await mongoose.connect(mongoUri);
 
-    if (process.env.NODE_ENV !== "test") {
+    if (config.app.nodeEnv !== "test") {
       console.log(`MongoDB Connected: ${conn.connection.host}`);
       console.log(`Database name: ${conn.connection.name}`);
       console.log(
@@ -55,7 +56,7 @@ const disconnectDB = async () => {
       await mongod.stop();
       console.log("MongoDB In-Memory Server stopped.");
     }
-    if (process.env.NODE_ENV !== "test") {
+    if (config.app.nodeEnv !== "test") {
       console.log("MongoDB disconnected.");
     }
   } catch (error) {
