@@ -11,39 +11,51 @@ This document provides an overview of the filesystem for this project, describin
 ├── app/
 │   ├── api/
 │   │   ├── controllers/
-│   │   ├── middlewares/
 │   │   ├── routes/
-│   │   ├── services/
-│   │   └── webhook/
+│   │   └── services/
 │   ├── libs/
+│   │   └── redis.js
 │   ├── src/
-│   │   └── components/
+│   │   └── agents/
+│   ├── utils/
 │   └── workers/
 │       ├── gateways/
-│       ├── beaconMessage.worker.js
-│       └── generic.worker.js
+│       │   └── whatsapp.gateway.worker.js
+│       └── beaconMessage.worker.js
 ├── docs/
 │   ├── architecture.md
-│   └── services.md
+│   ├── architecture_patterns.md
+│   ├── endpoint_snippet.md
+│   ├── filestructure.md
+│   ├── queue.md
+│   ├── services.md
+│   └── workerArchitecture.md
 ├── libs/
 │   └── db.js
 ├── models/
 │   ├── NostrIdentity.model.js
+│   ├── adjustment.model.js
+│   ├── user.model.js
 │   └── index.js
-├── public/
+├── scripts/
+│   └── queue-add.js
 ├── tests/
 │   ├── conversationFlow.spec.js
 │   ├── db.test.js
 │   ├── queue.test.js
 │   ├── whatsapp.gateway.test.js
+│   ├── user.test.js
 │   └── worker.test.js
 ├── .gitignore
 ├── babel.config.js
+├── cleanLogs.js
 ├── CLAUDE.md
 ├── ecosystem.config.cjs
 ├── index.js
+├── jest.config.js
 ├── package-lock.json
 ├── package.json
+├── .wwebjs.lock
 ```
 
 ---
@@ -56,24 +68,26 @@ Main application source code. Contains backend logic, API endpoints, libraries, 
 
 - **api/**: Express API code, organized by MVC pattern.
   - **controllers/**: Handles HTTP requests and responses for each resource (e.g., conversation, queue).
-  - **middlewares/**: Express middleware functions for request processing.
   - **routes/**: Defines API endpoints and routes for resources.
   - **services/**: Business logic and database operations.
-  - **webhook/**: Handles incoming webhooks from external services.
-- **libs/**: Application-specific libraries (e.g., Redis connection).
-- **src/**: Shared or UI components (currently contains `components/`).
-- **workers/**: Background worker scripts for asynchronous processing and integrations.
+ - **libs/**: Application-specific libraries (e.g., Redis connection).
+ - **src/**: Agents and other shared modules (currently `agents/`).
+ - **utils/**: Helper utilities used across the application.
+ - **workers/**: Background worker scripts for asynchronous processing and integrations.
   - **gateways/**: Gateway-specific workers (e.g., WhatsApp integration).
-  - **beaconMessage.worker.js**: Worker for processing beacon messages. // NOT USED TO BE REMOVED
-  - **generic.worker.js**: General-purpose background worker.
+  - **beaconMessage.worker.js**: Worker for processing beacon messages.
 
 ### **docs/**
 
 Project documentation.
 
 - **architecture.md**: High-level overview of system architecture, models, and API structure.
-- **services.md**: Notes on service dependencies (e.g., Redis setup).
+- **architecture_patterns.md**: Summary of design patterns used in the code.
+- **endpoint_snippet.md**: Example workflow for adding API endpoints.
 - **filestructure.md**: (This file) Documents the filesystem and folder purposes.
+- **queue.md**: Explanation of queue utilities and worker design.
+- **services.md**: Notes on service dependencies (e.g., Redis setup).
+- **workerArchitecture.md**: Description of the gateway, worker and API processes.
 
 ### **libs/**
 
@@ -86,11 +100,9 @@ Shared libraries for the project.
 Mongoose models for MongoDB collections.
 
 - **NostrIdentity.model.js**: Model for Nostr protocol identity management.
+- **adjustment.model.js**: Model for user adjustment tracking.
+- **user.model.js**: Basic user record.
 - **index.js**: Entry point for loading and exporting all models.
-
-### **public/**
-
-Static assets (if used; currently empty).
 
 ### **tests/**
 
@@ -101,6 +113,7 @@ Jest test suites for API, workers, and models.
 - **queue.test.js**: Queue management tests.
 - **whatsapp.gateway.test.js**: WhatsApp gateway integration tests.
 - **worker.test.js**: Worker process tests.
+- **user.test.js**: User API tests.
 
 ### **Root Files**
 
@@ -118,11 +131,10 @@ Jest test suites for API, workers, and models.
 
 | Path                     | Purpose                                                |
 | ------------------------ | ------------------------------------------------------ |
-| **app/**                 | Main application code (API, workers, libs, components) |
+| **app/**                 | Main application code (API, workers, libs, agents, utils) |
 | **docs/**                | Project documentation                                  |
 | **libs/**                | Shared libraries (e.g., database connection)           |
 | **models/**              | Mongoose models for MongoDB                            |
-| **public/**              | Static assets (if used)                                |
 | **tests/**               | Jest test suites                                       |
 | **index.js**             | Application entry point                                |
 | **package.json**         | Project manifest and dependencies                      |
